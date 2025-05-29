@@ -10,26 +10,40 @@ export default function RegisterForm() {
     return 'MB' + Math.random().toString(36).substring(2, 5).toUpperCase()
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    
+    const form = e.currentTarget
+    if (!form) return
+
     setIsSubmitting(true)
 
-    const formData = new FormData(e.currentTarget)
-    const firstName = formData.get('firstName') as string
-    const lastName = formData.get('lastName') as string
-    const email = formData.get('email') as string
-    const phone = formData.get('phone') as string
+    try {
+      const firstName = (form.elements.namedItem('firstName') as HTMLInputElement)?.value || ''
+      const lastName = (form.elements.namedItem('lastName') as HTMLInputElement)?.value || ''
+      const email = (form.elements.namedItem('email') as HTMLInputElement)?.value || ''
+      const phone = (form.elements.namedItem('phone') as HTMLInputElement)?.value || ''
 
-    // Simulate registration
-    setTimeout(() => {
-      const playerId = generateShortId()
-      console.log('Registering player:', { firstName, lastName, email, phone, id: playerId })
-      setRegisteredPlayer({
-        id: playerId,
-        firstName: firstName
-      })
+      if (!firstName || !lastName || !email || !phone) {
+        console.error('Missing required fields')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Simulate registration
+      setTimeout(() => {
+        const playerId = generateShortId()
+        console.log('Registering player:', { firstName, lastName, email, phone, id: playerId })
+        setRegisteredPlayer({
+          id: playerId,
+          firstName: firstName
+        })
+        setIsSubmitting(false)
+      }, 1000)
+    } catch (error) {
+      console.error('Form submission error:', error)
       setIsSubmitting(false)
-    }, 1000)
+    }
   }
 
   if (registeredPlayer) {
