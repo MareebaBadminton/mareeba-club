@@ -13,11 +13,20 @@ export default function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
+
+    const formData = new FormData(e.currentTarget)
+    const firstName = formData.get('firstName') as string
+    const lastName = formData.get('lastName') as string
+    const email = formData.get('email') as string
+    const phone = formData.get('phone') as string
+
     // Simulate registration
     setTimeout(() => {
+      const playerId = generateShortId()
+      console.log('Registering player:', { firstName, lastName, email, phone, id: playerId })
       setRegisteredPlayer({
-        id: generateShortId(),
-        firstName: (e.currentTarget.elements.namedItem('firstName') as HTMLInputElement).value
+        id: playerId,
+        firstName: firstName
       })
       setIsSubmitting(false)
     }, 1000)
