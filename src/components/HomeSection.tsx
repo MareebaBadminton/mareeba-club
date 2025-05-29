@@ -17,7 +17,7 @@ export default function HomeSection() {
           Mareeba PCYC
         </p>
         <p className="text-gray-600">
-          Walsh Street, Mareeba QLD 4880
+          183 Walsh Street, Mareeba QLD 4880
         </p>
       </section>
 
@@ -26,15 +26,15 @@ export default function HomeSection() {
         <div className="space-y-4">
           <div>
             <h4 className="font-medium text-gray-900">Monday</h4>
-            <p className="text-gray-600">7:00 PM - 9:00 PM</p>
+            <p className="text-gray-600">8:00 PM - 10:00 PM</p>
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">Wednesday</h4>
-            <p className="text-gray-600">7:00 PM - 9:00 PM</p>
+            <h4 className="font-medium text-gray-900">Friday</h4>
+            <p className="text-gray-600">7:30 PM - 9:30 PM</p>
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">Saturday</h4>
-            <p className="text-gray-600">2:00 PM - 4:00 PM</p>
+            <h4 className="font-medium text-gray-900">Sunday</h4>
+            <p className="text-gray-600">2:30 PM - 4:30 PM</p>
           </div>
         </div>
       </section>
