@@ -6,7 +6,7 @@ export default function Logo() {
   return (
     <div className="flex items-center gap-2">
       <Image
-        src="/logo.png"
+        src="/mb-logo.png"
         alt="Mareeba Badminton Club Logo"
         width={40}
         height={40}
