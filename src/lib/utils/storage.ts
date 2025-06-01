@@ -35,8 +35,21 @@ const DEFAULT_SESSIONS = [
 
 const isClient = typeof window !== 'undefined';
 
-export const getItem = (key: keyof typeof STORAGE_KEYS) => {
-  if (!isClient) return null;
+// Check if localStorage is available
+const isStorageAvailable = () => {
+  if (!isClient) return false;
+  try {
+    const testKey = '__test__';
+    localStorage.setItem(testKey, testKey);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+export const getItem = <T>(key: keyof typeof STORAGE_KEYS): T | null => {
+  if (!isStorageAvailable()) return null;
   try {
     const item = localStorage.getItem(STORAGE_KEYS[key]);
     return item ? JSON.parse(item) : null;
@@ -46,8 +59,8 @@ export const getItem = (key: keyof typeof STORAGE_KEYS) => {
   }
 };
 
-export const setItem = (key: keyof typeof STORAGE_KEYS, value: any) => {
-  if (!isClient) return;
+export const setItem = <T>(key: keyof typeof STORAGE_KEYS, value: T): void => {
+  if (!isStorageAvailable()) return;
   try {
     localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(value));
   } catch (error) {
@@ -55,8 +68,8 @@ export const setItem = (key: keyof typeof STORAGE_KEYS, value: any) => {
   }
 };
 
-export const removeItem = (key: keyof typeof STORAGE_KEYS) => {
-  if (!isClient) return;
+export const removeItem = (key: keyof typeof STORAGE_KEYS): void => {
+  if (!isStorageAvailable()) return;
   try {
     localStorage.removeItem(STORAGE_KEYS[key]);
   } catch (error) {
@@ -64,8 +77,12 @@ export const removeItem = (key: keyof typeof STORAGE_KEYS) => {
   }
 };
 
-export const initializeStorage = () => {
-  if (!isClient) return;
+export const initializeStorage = (): void => {
+  if (!isStorageAvailable()) {
+    console.warn('LocalStorage is not available');
+    return;
+  }
+
   try {
     // Initialize sessions if they don't exist
     if (!getItem('SESSIONS')) {
@@ -87,42 +104,12 @@ export const initializeStorage = () => {
   }
 };
 
-// Generic get data function
+// Alias functions for backward compatibility with array returns
 export function getData<T>(key: keyof typeof STORAGE_KEYS): T[] {
-  if (typeof window === 'undefined' || !isLocalStorageAvailable()) {
-    return [];
-  }
-  
-  try {
-    const data = localStorage.getItem(STORAGE_KEYS[key]);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error(`Error getting data for key ${key}:`, error);
-    return [];
-  }
+  const data = getItem<T[]>(key);
+  return data || [];
 }
 
-// Generic set data function
-export function setData<T>(key: keyof typeof STORAGE_KEYS, data: T[]) {
-  if (typeof window === 'undefined' || !isLocalStorageAvailable()) {
-    return;
-  }
-  
-  try {
-    localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(data));
-  } catch (error) {
-    console.error(`Error setting data for key ${key}:`, error);
-  }
-}
-
-// Check if localStorage is available
-const isLocalStorageAvailable = () => {
-  try {
-    const testKey = '__test__';
-    localStorage.setItem(testKey, testKey);
-    localStorage.removeItem(testKey);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}; 
+export function setData<T>(key: keyof typeof STORAGE_KEYS, data: T[]): void {
+  setItem(key, data);
+} 
