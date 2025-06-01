@@ -1,12 +1,29 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import RegisterForm from '@/components/RegisterForm'
-import BookingForm from '@/components/BookingForm'
+import dynamic from 'next/dynamic'
+
+// Static imports for smaller components
 import Logo from '@/components/Logo'
 import HomeSection from '@/components/HomeSection'
-import BookingLookup from '@/components/BookingLookup'
-import NextSessionPlayers from '@/components/NextSessionPlayers'
+
+// Dynamic imports for larger components
+const RegisterForm = dynamic(() => import('@/components/RegisterForm'), {
+  loading: () => <p>Loading registration form...</p>
+})
+
+const BookingForm = dynamic(() => import('@/components/BookingForm'), {
+  loading: () => <p>Loading booking form...</p>
+})
+
+const BookingLookup = dynamic(() => import('@/components/BookingLookup'), {
+  loading: () => <p>Loading booking lookup...</p>
+})
+
+const NextSessionPlayers = dynamic(() => import('@/components/NextSessionPlayers'), {
+  loading: () => <p>Loading next session players...</p>
+})
+
 import { initializeStorage } from '@/lib/utils/storage'
 
 export default function Home() {
