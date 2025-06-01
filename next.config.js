@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: 'export',
   typescript: {
     ignoreBuildErrors: true
-  }
+  },
+  images: {
+    unoptimized: true
+  },
+  trailingSlash: true
 }
 
 module.exports = nextConfig 
