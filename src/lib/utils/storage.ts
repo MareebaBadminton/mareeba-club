@@ -33,45 +33,59 @@ const DEFAULT_SESSIONS = [
   }
 ];
 
-// Check if localStorage is available
-const isLocalStorageAvailable = () => {
+const isClient = typeof window !== 'undefined';
+
+export const getItem = (key: keyof typeof STORAGE_KEYS) => {
+  if (!isClient) return null;
   try {
-    const testKey = '__test__';
-    localStorage.setItem(testKey, testKey);
-    localStorage.removeItem(testKey);
-    return true;
-  } catch (e) {
-    return false;
+    const item = localStorage.getItem(STORAGE_KEYS[key]);
+    return item ? JSON.parse(item) : null;
+  } catch (error) {
+    console.error(`Error getting item from storage: ${error}`);
+    return null;
   }
 };
 
-// Initialize storage with default data if empty
-export function initializeStorage() {
-  if (typeof window === 'undefined' || !isLocalStorageAvailable()) {
-    console.warn('LocalStorage is not available');
-    return;
-  }
-
+export const setItem = (key: keyof typeof STORAGE_KEYS, value: any) => {
+  if (!isClient) return;
   try {
-    if (!localStorage.getItem(STORAGE_KEYS.PLAYERS)) {
-      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify([]));
-    }
-    
-    if (!localStorage.getItem(STORAGE_KEYS.BOOKINGS)) {
-      localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify([]));
-    }
-    
-    if (!localStorage.getItem(STORAGE_KEYS.SESSIONS)) {
-      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+    localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error setting item in storage: ${error}`);
+  }
+};
+
+export const removeItem = (key: keyof typeof STORAGE_KEYS) => {
+  if (!isClient) return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS[key]);
+  } catch (error) {
+    console.error(`Error removing item from storage: ${error}`);
+  }
+};
+
+export const initializeStorage = () => {
+  if (!isClient) return;
+  try {
+    // Initialize sessions if they don't exist
+    if (!getItem('SESSIONS')) {
+      setItem('SESSIONS', DEFAULT_SESSIONS);
     }
 
-    if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) {
-      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([]));
+    // Initialize other storage items if they don't exist
+    if (!getItem('PLAYERS')) {
+      setItem('PLAYERS', []);
+    }
+    if (!getItem('BOOKINGS')) {
+      setItem('BOOKINGS', []);
+    }
+    if (!getItem('PAYMENTS')) {
+      setItem('PAYMENTS', []);
     }
   } catch (error) {
-    console.error('Error initializing storage:', error);
+    console.error(`Error initializing storage: ${error}`);
   }
-}
+};
 
 // Generic get data function
 export function getData<T>(key: keyof typeof STORAGE_KEYS): T[] {
@@ -99,4 +113,16 @@ export function setData<T>(key: keyof typeof STORAGE_KEYS, data: T[]) {
   } catch (error) {
     console.error(`Error setting data for key ${key}:`, error);
   }
-} 
+}
+
+// Check if localStorage is available
+const isLocalStorageAvailable = () => {
+  try {
+    const testKey = '__test__';
+    localStorage.setItem(testKey, testKey);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}; 
