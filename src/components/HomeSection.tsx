@@ -54,6 +54,10 @@ export default function HomeSection() {
             <h4 className="font-medium text-gray-900">Dress Code</h4>
             <p className="text-gray-600">Sports attire and non-marking shoes required.</p>
           </div>
+          <div>
+            <h4 className="font-medium text-gray-900">Smoking Policy</h4>
+            <p className="text-gray-600">Smoking is not permitted in any Council building, site or within 5m of public entrances including bathrooms and kitchens.</p>
+          </div>
         </div>
       </section>
     </div>
