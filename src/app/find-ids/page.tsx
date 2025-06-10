@@ -1,4 +1,4 @@
-import RegisterForm from '@/components/RegisterForm'
+import BookingLookup from '@/components/BookingLookup'
 
 export default function FindIds() {
   return (
