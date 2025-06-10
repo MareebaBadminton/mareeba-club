@@ -13,9 +13,6 @@ export default function HomeSection() {
 
       <section className="bg-white p-6 rounded-lg shadow-sm">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Location</h3>
-        <p className="text-gray-600 mb-2">
-          Mareeba PCYC
-        </p>
         <p className="text-gray-600">
           183 Walsh Street, Mareeba QLD 4880
         </p>
@@ -62,4 +59,4 @@ export default function HomeSection() {
       </section>
     </div>
   )
-} 
+}

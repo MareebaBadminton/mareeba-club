@@ -9,8 +9,9 @@ import type { Booking, Session, Player } from '@/lib/types/player'
 export default function NextSessionPlayers() {
   const [nextSession, setNextSession] = useState<{
     date: string;
-    time: string;
-    players: { name: string; paymentStatus: string }[];
+    players: string[];
+    session: Session;
+    availableSpots: number;
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -19,14 +20,13 @@ export default function NextSessionPlayers() {
     loadNextSession()
   }, [])
 
-  const getNextSessionDate = (sessions: Session[]): string => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+  const getNextSessionDate = (sessions: Session[]): { date: string; session: Session } | null => {
+    const now = new Date()
     
-    // Get all possible upcoming sessions for the next 7 days
+    // Get all possible upcoming sessions for the next 14 days
     const upcoming: { date: string; session: Session }[] = []
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today)
+    for (let i = 0; i < 14; i++) { // Start from today (i=0)
+      const date = new Date(now)
       date.setDate(date.getDate() + i)
       const dateStr = date.toISOString().split('T')[0]
       
@@ -35,7 +35,18 @@ export default function NextSessionPlayers() {
       const matchingSessions = sessions.filter(s => s.dayOfWeek === dayOfWeek)
       
       matchingSessions.forEach(session => {
-        upcoming.push({ date: dateStr, session })
+        // For today, only include sessions that haven't started yet
+        if (i === 0) {
+          const sessionTime = new Date(date)
+          const [hours, minutes] = session.startTime.split(':')
+          sessionTime.setHours(parseInt(hours), parseInt(minutes))
+          
+          if (sessionTime > now) {
+            upcoming.push({ date: dateStr, session })
+          }
+        } else {
+          upcoming.push({ date: dateStr, session })
+        }
       })
     }
     
@@ -46,7 +57,7 @@ export default function NextSessionPlayers() {
       return a.session.startTime.localeCompare(b.session.startTime)
     })
     
-    return upcoming[0]?.date || ''
+    return upcoming[0] || null
   }
 
   const loadNextSession = async () => {
@@ -56,39 +67,40 @@ export default function NextSessionPlayers() {
 
       // Get all sessions and find the next one
       const sessions = await getAllSessions()
-      const nextDate = getNextSessionDate(sessions)
+      const nextSessionInfo = getNextSessionDate(sessions)
       
-      if (!nextDate) {
+      if (!nextSessionInfo) {
         setError('No upcoming sessions found')
         return
       }
+
+      const { date: nextDate, session } = nextSessionInfo
 
       // Get all bookings for the next session
       const allBookings = await getAllBookings()
       const sessionBookings = allBookings.filter(
         booking => 
           booking.sessionDate === nextDate && 
-          booking.status === 'confirmed'
+          booking.status === 'confirmed' &&
+          (booking.paymentStatus === 'paid' || booking.paymentStatus === 'confirmed')
       )
 
-      // Get player details for each booking
+      // Get player names for each booking
       const playerPromises = sessionBookings.map(async booking => {
         const player = await getPlayerById(booking.playerId)
-        return {
-          name: player ? `${player.firstName} ${player.lastName}` : 'Unknown Player',
-          paymentStatus: booking.paymentStatus
-        }
+        return player ? `${player.firstName} ${player.lastName}` : 'Unknown Player'
       })
 
       const players = await Promise.all(playerPromises)
       
-      // Get session time
-      const sessionTime = sessionBookings[0]?.sessionTime || ''
-
+      // Calculate available spots
+      const availableSpots = session.maxPlayers - players.length
+      
       setNextSession({
         date: nextDate,
-        time: sessionTime,
-        players
+        players,
+        session,
+        availableSpots
       })
     } catch (error) {
       setError('Error loading next session information')
@@ -99,15 +111,15 @@ export default function NextSessionPlayers() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
-        <p className="text-gray-600">Loading next session information...</p>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-600">Loading next session...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
+      <div className="bg-white rounded-lg shadow-sm p-6">
         <p className="text-red-600">{error}</p>
       </div>
     )
@@ -115,54 +127,45 @@ export default function NextSessionPlayers() {
 
   if (!nextSession) {
     return (
-      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
+      <div className="bg-white rounded-lg shadow-sm p-6">
         <p className="text-gray-600">No upcoming session found</p>
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Next Session Players</h2>
-      
-      <div className="mb-6">
-        <p className="text-gray-600">
-          Date: <span className="font-medium">{new Date(nextSession.date).toLocaleDateString()}</span>
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Next Session
+        </h3>
+        <p className="text-gray-700">
+          {new Date(nextSession.date).toLocaleDateString('en-AU', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
         </p>
-        <p className="text-gray-600">
-          Time: <span className="font-medium">{nextSession.time}</span>
-        </p>
-        <p className="text-gray-600">
-          Players Registered: <span className="font-medium">{nextSession.players.length}</span>
+        <p className="text-sm text-gray-600 mt-1">
+          Available spots: {nextSession.availableSpots} of {nextSession.session.maxPlayers}
         </p>
       </div>
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Registered Players</h3>
+      <div>
+        <h4 className="text-md font-medium text-gray-700 mb-3">Players signed up:</h4>
         {nextSession.players.length === 0 ? (
-          <p className="text-gray-600">No players registered yet</p>
+          <p className="text-gray-500 italic">No players registered yet</p>
         ) : (
-          <div className="grid gap-2">
-            {nextSession.players.map((player, index) => (
-              <div
-                key={index}
-                className="p-3 bg-gray-50 border border-gray-200 rounded-md flex justify-between items-center"
-              >
-                <span className="text-gray-900">{player.name}</span>
-                <span className={`px-2 py-1 rounded-full text-sm ${
-                  player.paymentStatus === 'paid'
-                    ? 'bg-green-100 text-green-800'
-                    : player.paymentStatus === 'failed'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {player.paymentStatus}
-                </span>
-              </div>
+          <ol className="space-y-2">
+            {nextSession.players.map((playerName, index) => (
+              <li key={index} className="text-gray-900">
+                {playerName}
+              </li>
             ))}
-          </div>
+          </ol>
         )}
       </div>
     </div>
   )
-} 
+}

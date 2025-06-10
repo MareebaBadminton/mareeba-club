@@ -77,19 +77,6 @@ export default function RegisterForm() {
         />
       </div>
 
-      <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-          Phone Number
-        </label>
-        <input
-          type="tel"
-          id="phone"
-          name="phone"
-          required
-          className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
-        />
-      </div>
-
       <button
         type="submit"
         disabled={isSubmitting}
@@ -103,4 +90,4 @@ export default function RegisterForm() {
       </button>
     </form>
   )
-} 
+}

@@ -1,18 +1,27 @@
-import "./globals.css";
+import type { Metadata } from 'next'
+import './globals.css'
 
-export const metadata = {
-  title: "Mareeba Badminton Club",
-  description: "Your local badminton community in Mareeba, QLD",
-};
+export const metadata: Metadata = {
+  title: 'Mareeba Badminton Club',
+  description: 'Book sessions and manage your bookings at Mareeba Badminton Club',
+  icons: {
+    icon: '/mb-logo.png',
+  },
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="font-sans">{children}</body>
+    <html lang="en" className="h-full bg-gray-50">
+      <head>
+        <link rel="icon" href="/mb-logo.png" />
+      </head>
+      <body className="h-full">
+        {children}
+      </body>
     </html>
-  );
+  )
 }

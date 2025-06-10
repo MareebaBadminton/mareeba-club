@@ -12,15 +12,15 @@ const DEFAULT_SESSIONS = [
     dayOfWeek: 'Friday',
     startTime: '19:30',
     endTime: '21:30',
-    maxPlayers: 24,
-    fee: 8 // Member rate
+    maxPlayers: 20,  // Already set to 20
+    fee: 8
   },
   {
     id: 'sunday-afternoon',
     dayOfWeek: 'Sunday',
     startTime: '14:30',
     endTime: '16:30',
-    maxPlayers: 24,
+    maxPlayers: 20,  // Already set to 20
     fee: 8
   },
   {
@@ -28,10 +28,13 @@ const DEFAULT_SESSIONS = [
     dayOfWeek: 'Monday',
     startTime: '20:00',
     endTime: '22:00',
-    maxPlayers: 24,
+    maxPlayers: 20,  // Already set to 20
     fee: 8
   }
 ];
+
+// In-memory fallback when localStorage is not available
+let memoryStorage: { [key: string]: any } = {};
 
 const isClient = typeof window !== 'undefined';
 
@@ -48,68 +51,58 @@ const isStorageAvailable = () => {
   }
 };
 
-export const getItem = <T>(key: keyof typeof STORAGE_KEYS): T | null => {
-  if (!isStorageAvailable()) return null;
+// Get item from storage
+export const getData = <T>(key: keyof typeof STORAGE_KEYS): T[] => {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS[key]);
-    return item ? JSON.parse(item) : null;
+    if (!isClient) return [];
+    
+    const storageKey = STORAGE_KEYS[key];
+    if (isStorageAvailable()) {
+      const data = localStorage.getItem(storageKey);
+      return data ? JSON.parse(data) : [];
+    } else {
+      return memoryStorage[storageKey] || [];
+    }
   } catch (error) {
-    console.error(`Error getting item from storage: ${error}`);
-    return null;
+    console.error(`Error getting data for ${key}:`, error);
+    return [];
   }
 };
 
-export const setItem = <T>(key: keyof typeof STORAGE_KEYS, value: T): void => {
-  if (!isStorageAvailable()) return;
+// Set item in storage
+export const setData = <T>(key: keyof typeof STORAGE_KEYS, data: T[]): void => {
   try {
-    localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(value));
+    if (!isClient) return;
+    
+    const storageKey = STORAGE_KEYS[key];
+    if (isStorageAvailable()) {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } else {
+      memoryStorage[storageKey] = data;
+    }
   } catch (error) {
-    console.error(`Error setting item in storage: ${error}`);
-  }
-};
-
-export const removeItem = (key: keyof typeof STORAGE_KEYS): void => {
-  if (!isStorageAvailable()) return;
-  try {
-    localStorage.removeItem(STORAGE_KEYS[key]);
-  } catch (error) {
-    console.error(`Error removing item from storage: ${error}`);
+    console.error(`Error setting data for ${key}:`, error);
   }
 };
 
 export const initializeStorage = (): void => {
-  if (!isStorageAvailable()) {
-    console.warn('LocalStorage is not available');
-    return;
-  }
+  if (!isClient) return;
 
   try {
-    // Initialize sessions if they don't exist
-    if (!getItem('SESSIONS')) {
-      setItem('SESSIONS', DEFAULT_SESSIONS);
-    }
+    // Always update sessions to ensure latest configuration
+    setData('SESSIONS', DEFAULT_SESSIONS);
 
     // Initialize other storage items if they don't exist
-    if (!getItem('PLAYERS')) {
-      setItem('PLAYERS', []);
+    if (!getData('PLAYERS').length) {
+      setData('PLAYERS', []);
     }
-    if (!getItem('BOOKINGS')) {
-      setItem('BOOKINGS', []);
+    if (!getData('BOOKINGS').length) {
+      setData('BOOKINGS', []);
     }
-    if (!getItem('PAYMENTS')) {
-      setItem('PAYMENTS', []);
+    if (!getData('PAYMENTS').length) {
+      setData('PAYMENTS', []);
     }
   } catch (error) {
     console.error(`Error initializing storage: ${error}`);
   }
 };
-
-// Alias functions for backward compatibility with array returns
-export function getData<T>(key: keyof typeof STORAGE_KEYS): T[] {
-  const data = getItem<T[]>(key);
-  return data || [];
-}
-
-export function setData<T>(key: keyof typeof STORAGE_KEYS, data: T[]): void {
-  setItem(key, data);
-} 
