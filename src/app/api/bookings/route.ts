@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { bookingId, paymentStatus } = await request.json();
+    const { bookingId, playerId, sessionDate, paymentStatus } = await request.json();
     
     // Update payment status in Google Sheets
-    await updateBookingPaymentInSheet(bookingId, paymentStatus);
+    await updateBookingPaymentInSheet(playerId, sessionDate, paymentStatus);
     
     return NextResponse.json({ 
       success: true, 

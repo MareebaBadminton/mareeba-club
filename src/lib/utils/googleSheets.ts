@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { getAllBookings } from './bookingUtils';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
@@ -40,11 +41,10 @@ export async function addPlayerToSheet(player: {
       new Date(player.registeredAt).toLocaleString()
     ]];
 
-    // Append the data to the sheet
-    // In addPlayerToSheet function
+    // Append the data to the sheet - UPDATED SHEET NAME
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'ID List!A:E',
+      range: 'badminton ID List and Bookings!A:E', // Changed from 'ID List!A:E'
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values,
@@ -182,7 +182,8 @@ export async function addBookingToSheet(booking: {
 
 // Update booking payment status in Google Sheets
 export async function updateBookingPaymentInSheet(
-  bookingId: string, 
+  playerId: string,
+  sessionDate: string,
   paymentStatus: 'pending' | 'paid' | 'failed'
 ) {
   try {
@@ -193,23 +194,27 @@ export async function updateBookingPaymentInSheet(
       throw new Error('GOOGLE_SHEETS_SPREADSHEET_ID not configured');
     }
 
-    // First, find the booking row
+    // First, get all rows from the sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Bookings!A:I',
+      range: 'Bookings!A:G',
     });
 
     const rows = response.data.values || [];
-    const bookingRowIndex = rows.findIndex(row => row[0] === bookingId);
+    
+    // Find the booking row by matching playerId (column A) and sessionDate (column C)
+    const bookingRowIndex = rows.findIndex(row => 
+      row[0] === playerId && row[2] === sessionDate
+    );
 
     if (bookingRowIndex === -1) {
       throw new Error('Booking not found in sheet');
     }
 
-    // Update the payment status (column H, index 7)
+    // Update the payment status (column F, index 5)
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `Bookings!H${bookingRowIndex + 1}`,
+      range: `Bookings!F${bookingRowIndex + 1}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[paymentStatus]],
