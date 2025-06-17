@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { getAllBookings, getPlayerBookings } from '@/lib/utils/bookingUtils'
-import { getAllPlayers, getPlayerById } from '@/lib/utils/playerUtils'
+import { getAllBookings, getPlayerBookings, syncBookingsFromGoogleSheets } from '@/lib/utils/bookingUtils'
+import { getAllPlayers, getPlayerById, syncPlayersFromGoogleSheets } from '@/lib/utils/playerUtils'
 import type { Booking, Player } from '@/lib/types/player'
 
 export default function BookingLookup() {
@@ -21,6 +21,12 @@ export default function BookingLookup() {
     setBookings([])
 
     try {
+      // Sync data from Google Sheets first
+      await Promise.all([
+        syncPlayersFromGoogleSheets(),
+        syncBookingsFromGoogleSheets()
+      ])
+
       if (lookupMethod === 'name') {
         // Get all players with matching name
         const allPlayers = await getAllPlayers()
@@ -72,7 +78,6 @@ export default function BookingLookup() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Find Your Booking ID</h2>
       
       <div className="mb-6">
         <div className="flex space-x-4">
@@ -113,7 +118,7 @@ export default function BookingLookup() {
                 id="firstName"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                className="w-full px-2 py-1 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
                 required
               />
             </div>
@@ -127,7 +132,7 @@ export default function BookingLookup() {
                 id="lastName"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+                className="w-full px-2 py-1 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
                 required
               />
             </div>
@@ -142,7 +147,7 @@ export default function BookingLookup() {
               id="playerId"
               value={playerId}
               onChange={(e) => setPlayerId(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+              className="w-full px-2 py-1 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
               required
             />
           </div>
@@ -177,7 +182,6 @@ export default function BookingLookup() {
             >
               <p className="font-medium text-gray-900">Booking ID: {booking.id}</p>
               <p className="text-gray-600">Date: {booking.sessionDate}</p>
-              <p className="text-gray-600">Time: {booking.sessionTime}</p>
               <p className="text-gray-600">
                 Status: <span className="capitalize">{booking.status}</span>
               </p>
@@ -190,4 +194,4 @@ export default function BookingLookup() {
       )}
     </div>
   )
-} 
+}

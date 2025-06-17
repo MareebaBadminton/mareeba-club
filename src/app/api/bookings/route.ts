@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addBookingToSheet, updateBookingPaymentInSheet } from '@/lib/utils/googleSheets';
+import { addBookingToSheet, updateBookingPaymentInSheet, getBookingsFromSheet } from '@/lib/utils/googleSheets';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +36,19 @@ export async function PATCH(request: NextRequest) {
     console.error('Error updating payment status:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update payment status' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const bookings = await getBookingsFromSheet();
+    return NextResponse.json({ success: true, bookings });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch bookings from Google Sheets' },
       { status: 500 }
     );
   }

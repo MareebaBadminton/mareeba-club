@@ -3,12 +3,14 @@ export interface Player {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-  emergencyContact: {
-    name: string;
-    phone: string;
-  };
   registeredAt: string;
+}
+
+export interface PlayerSyncStatus {
+  playerId: string;
+  syncedToSheets: boolean;
+  lastSyncAttempt: string;
+  syncError?: string;
 }
 
 export interface Payment {
@@ -27,7 +29,7 @@ export interface Booking {
   sessionDate: string;
   sessionTime: string;
   createdAt: string;
-  status: 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'failed';
   fee: number;
 }
@@ -39,4 +41,4 @@ export interface Session {
   endTime: string;
   maxPlayers: number;
   fee: number;
-} 
+}

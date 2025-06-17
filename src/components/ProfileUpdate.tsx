@@ -28,15 +28,11 @@ export default function ProfileUpdate({ playerId, onUpdate }: ProfileUpdateProps
     setMessage('');
 
     const formData = new FormData(e.currentTarget);
+    
     const updateData = {
       firstName: formData.get('firstName') as string,
       lastName: formData.get('lastName') as string,
       email: formData.get('email') as string,
-      phone: formData.get('phone') as string,
-      emergencyContact: {
-        name: formData.get('emergencyContactName') as string,
-        phone: formData.get('emergencyContactPhone') as string,
-      },
     };
 
     try {
@@ -93,9 +89,7 @@ export default function ProfileUpdate({ playerId, onUpdate }: ProfileUpdateProps
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium">
-            Email
-          </label>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
           <input
             type="email"
             id="email"
@@ -104,52 +98,6 @@ export default function ProfileUpdate({ playerId, onUpdate }: ProfileUpdateProps
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           />
-        </div>
-
-        <div>
-          <label htmlFor="phone" className="block text-sm font-medium">
-            Phone
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            defaultValue={player.phone}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
-
-        <div className="border-t pt-4 mt-4">
-          <h3 className="text-lg font-medium mb-2">Emergency Contact</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="emergencyContactName" className="block text-sm font-medium">
-                Name
-              </label>
-              <input
-                type="text"
-                id="emergencyContactName"
-                name="emergencyContactName"
-                defaultValue={player.emergencyContact.name}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="emergencyContactPhone" className="block text-sm font-medium">
-                Phone
-              </label>
-              <input
-                type="tel"
-                id="emergencyContactPhone"
-                name="emergencyContactPhone"
-                defaultValue={player.emergencyContact.phone}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
-          </div>
         </div>
 
         {message && (
@@ -170,4 +118,4 @@ export default function ProfileUpdate({ playerId, onUpdate }: ProfileUpdateProps
       </form>
     </div>
   );
-} 
+}

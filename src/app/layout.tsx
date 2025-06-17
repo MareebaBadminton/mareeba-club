@@ -3,9 +3,11 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Mareeba Badminton Club',
-  description: 'Book sessions and manage your bookings at Mareeba Badminton Club',
+  description: 'Register and book badminton sessions in Mareeba',
   icons: {
     icon: '/mb-logo.png',
+    shortcut: '/mb-logo.png',
+    apple: '/mb-logo.png',
   },
 }
 
@@ -15,13 +17,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full bg-gray-50">
+    <html lang="en">
       <head>
-        <link rel="icon" href="/mb-logo.png" />
+        <link rel="icon" href="/mb-logo.png" type="image/png" />
+        <link rel="shortcut icon" href="/mb-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/mb-logo.png" />
+        <link rel="manifest" href="/site.webmanifest" />
       </head>
-      <body className="h-full">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

@@ -3,6 +3,18 @@ import { getPlayersFromSheet } from '@/lib/utils/googleSheets';
 
 export async function GET() {
   try {
+    // Check if Google Sheets is properly configured
+    const isGoogleSheetsConfigured = process.env.GOOGLE_SHEETS_SPREADSHEET_ID && 
+                                   process.env.GOOGLE_SHEETS_SPREADSHEET_ID !== 'placeholder';
+
+    if (!isGoogleSheetsConfigured) {
+      return NextResponse.json({ 
+        success: true, 
+        players: [],
+        message: 'Google Sheets not configured - using local storage only' 
+      });
+    }
+
     // Get players from Google Sheets
     const playersFromSheet = await getPlayersFromSheet();
     
@@ -14,8 +26,8 @@ export async function GET() {
   } catch (error) {
     console.error('Sync API Error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to sync players from Google Sheets' },
-      { status: 500 }
+      { success: true, players: [], error: 'Google Sheets unavailable - using local storage only' },
+      { status: 200 }
     );
   }
 }
