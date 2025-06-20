@@ -24,6 +24,11 @@ export default function SessionPlayerList() {
         // Filter bookings for selected date or get next session date if none selected
         const targetDate = selectedDate || await getNextSessionDate() // Now properly async
         
+        if (!targetDate) {
+          setLoading(false);
+          return; // Do not proceed if no date is available
+        }
+
         const allBookings = await getAllBookings()
         const confirmedBookings = allBookings.filter(
           booking => booking.sessionDate === targetDate && booking.status === 'confirmed'

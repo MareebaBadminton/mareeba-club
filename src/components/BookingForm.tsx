@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getPlayerById, syncPlayersFromGoogleSheets, isPlayerReadyForBooking, syncPlayerToSheets } from '@/lib/utils/playerUtils'
-import { createBooking, getAvailableSessions, getNextSessionDate } from '@/lib/utils/bookingUtils'
-import { createPayment } from '@/lib/utils/paymentUtils'
+import { getPlayerById } from '@/lib/utils/playerUtils'
+import { createBooking, getAvailableSessions, getNextSessionDate, updateBookingPaymentStatus } from '@/lib/utils/bookingUtils'
 import type { Session } from '@/lib/types/player'
 import { getAustralianToday, getMinBookingDate } from '@/lib/utils/dateUtils'
 
@@ -13,19 +12,14 @@ export default function BookingForm() {
   const [playerName, setPlayerName] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedSession, setSelectedSession] = useState('')
-  const [availableSessions, setAvailableSessions] = useState<Session[]>([])
+  const [availableSessions, setAvailableSessions] = useState<(Session & { availableSpots?: number })[]>([])
   const [bookingStatus, setBookingStatus] = useState<{
     success?: boolean;
     message: string;
   } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [bankReference, setBankReference] = useState('')
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncStatus, setSyncStatus] = useState<string>('')
   const [minDate, setMinDate] = useState('')
-  const [syncValidation, setSyncValidation] = useState<{ ready: boolean; message?: string } | null>(null)
-  const [isValidatingSync, setIsValidatingSync] = useState(false)
-  const [isSyncingPlayer, setIsSyncingPlayer] = useState(false)
 
   useEffect(() => {
     // Set minimum date to today in Australian timezone (GMT+10)
@@ -35,7 +29,12 @@ export default function BookingForm() {
     const setDefaultDate = async () => {
         try {
             const nextSession = await getNextSessionDate();
-            setSelectedDate(nextSession);
+            if (nextSession) {
+              setSelectedDate(nextSession);
+            } else {
+              // Fallback to today's date if no session is found
+              setSelectedDate(getMinBookingDate());
+            }
         } catch (error) {
             console.error('Error getting next session date:', error);
             // Fallback to today's date
@@ -45,6 +44,28 @@ export default function BookingForm() {
     
     setDefaultDate();
 }, []);
+
+  // Auto-load sessions if we already have a selectedDate (default) once the player is verified
+  useEffect(() => {
+    const fetchSessions = async () => {
+      if (!playerFound || !selectedDate) return
+      if (isDateUnavailable(selectedDate)) {
+        setAvailableSessions([])
+        return
+      }
+      setIsLoading(true)
+      try {
+        const sessions = await getAvailableSessions(selectedDate)
+        setAvailableSessions(sessions)
+      } catch (error) {
+        console.error('Error loading sessions:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerFound, selectedDate])
 
   // Check if selected date is unavailable
   const isDateUnavailable = (dateString: string) => {
@@ -67,7 +88,6 @@ export default function BookingForm() {
     
     setIsLoading(true)
     setBookingStatus(null)
-    setSyncValidation(null)
   
     try {
       let player = await getPlayerById(playerId)
@@ -75,44 +95,13 @@ export default function BookingForm() {
       if (player) {
         setPlayerFound(true)
         setPlayerName(`${player.firstName} ${player.lastName}`)
-        
-        // Validate sync status before allowing booking
-        setIsValidatingSync(true)
-        const syncCheck = await isPlayerReadyForBooking(playerId)
-        setSyncValidation(syncCheck)
-        setIsValidatingSync(false)
       } else {
-        // Smart sync: Auto-sync and retry once if player not found
-        setSyncStatus('Player not found. Syncing latest data from Supabase...')
-        setIsSyncing(true)
-        
-        try {
-          const syncResult = await syncPlayersFromGoogleSheets()
-          setSyncStatus(syncResult.message)
-          
-          // Retry after sync
-          const retryPlayer = await getPlayerById(playerId)
-          if (retryPlayer) {
-            setPlayerFound(true)
-            setPlayerName(`${retryPlayer.firstName} ${retryPlayer.lastName}`)
-            
-            // Validate sync status
-            setIsValidatingSync(true)
-            const syncCheck = await isPlayerReadyForBooking(playerId)
-            setSyncValidation(syncCheck)
-            setIsValidatingSync(false)
-          } else {
-            setPlayerFound(false)
-            setPlayerName('')
-            setSyncStatus('Player ID not found. Please check your Player ID or register first.')
-          }
-        } catch (syncError) {
-          setSyncStatus('Failed to sync data. Please try again.')
-          setPlayerFound(false)
-          setPlayerName('')
-        } finally {
-          setIsSyncing(false)
-        }
+        setPlayerFound(false)
+        setPlayerName('')
+        setBookingStatus({
+          success: false,
+          message: 'Player ID not found. Please check your Player ID or register first.'
+        })
       }
     } catch (error) {
       setPlayerFound(false)
@@ -155,17 +144,7 @@ export default function BookingForm() {
   const handleBookSession = async (session: Session) => {
     setIsLoading(true)
     setBookingStatus(null)
-
-    // Pre-booking validation
-    if (!syncValidation?.ready) {
-      setBookingStatus({
-        success: false,
-        message: 'Please ensure your player data is synced before booking.'
-      })
-      setIsLoading(false)
-      return
-    }
-
+  
     // Check if date is unavailable
     if (isDateUnavailable(selectedDate)) {
       setBookingStatus({
@@ -175,130 +154,36 @@ export default function BookingForm() {
       setIsLoading(false);
       return;
     }
-
+  
     try {
       const bookingResult = await createBooking(
         playerId,
         selectedDate,
-        `${session.startTime}-${session.endTime}`
+        `${session.startTime}-${session.endTime}`,
+        session.fee
       )
-
+  
       if (bookingResult.success && bookingResult.booking) {
         const booking = bookingResult.booking;
-        
-        // Generate payment reference FIRST
-        const formatDateForReference = (dateStr: string) => {
-          const [year, month, day] = dateStr.split('-');
-          return `${year}${day}${month}`;
-        };
-        
-        const paymentReference = `MB${playerId}${formatDateForReference(selectedDate)}`;
-        
-        // Create payment record
-        const payment = await createPayment({
-          bookingId: booking.id,
-          playerId: booking.playerId,
-          amount: session.fee,
-          paymentReference: paymentReference,
-          status: 'pending'
-        });
-        
-        // Save booking to Google Sheets
-        try {
-          await fetch('/api/bookings', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              id: booking.id,
-              playerId: booking.playerId,
-              playerName: playerName,
-              sessionDate: booking.sessionDate,
-              sessionTime: booking.sessionTime,
-              fee: booking.fee,
-              paymentReference: paymentReference,
-              paymentStatus: 'pending',
-              createdAt: booking.createdAt
-            }),
-          });
-          
-          console.log('Booking saved to Google Sheets');
-        } catch (sheetError) {
-          console.warn('Failed to save to Google Sheets:', sheetError);
-          // Continue with local booking even if Google Sheets fails
-        }
-        
-        const paymentInstructions = `Thanks for your booking! Once we receive your payment, your name will show up in 'Next session'.
-
-📋 PAYMENT INSTRUCTIONS:
-💰 Amount: $${booking.fee.toFixed(2)}
-🏦 BSB: 633-000
-🔢 Account: 225 395 003
-📝 Reference: ${paymentReference}
-
-⚠️ Please use the reference "${paymentReference}" for your payment.`;
-        
+        const paymentReference = `MB${playerId}${selectedDate.replace(/-/g, '')}`;
+        setBankReference(paymentReference)
         setBookingStatus({
           success: true,
-          message: paymentInstructions
-        });
+          message: 'Booking successful! Please see payment details below. Your name will appear in "Next Session" once an administrator confirms your payment.'
+        })
       } else {
         setBookingStatus({
           success: false,
-          message: 'Unable to book session. You may already have a booking for this session.'
-        });
+          message: bookingResult.error || 'Booking failed. Please try again.'
+        })
       }
-    } catch (error) {
+    } catch (error: any) {
       setBookingStatus({
         success: false,
-        message: 'Unable to book session. Please try again later.'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  const handleSyncPlayer = async () => {
-    setIsSyncingPlayer(true)
-    setSyncValidation(null)
-    
-    try {
-      console.log('Starting sync for player:', playerId);
-      const result = await syncPlayerToSheets(playerId)
-      console.log('Sync result:', result);
-      
-      if (result.success) {
-        // Re-validate after successful sync
-        const syncCheck = await isPlayerReadyForBooking(playerId)
-        setSyncValidation(syncCheck)
-      } else {
-        setSyncValidation({ ready: false, message: `Sync failed: ${result.message}` })
-      }
-    } catch (error) {
-      console.error('Sync error:', error);
-      // Show more detailed error message
-      setSyncValidation({ 
-        ready: false, 
-        message: `Failed to sync player data: ${error instanceof Error ? error.message : 'Server connection failed (404 error)'}` 
+        message: error.message || 'An unexpected error occurred.'
       })
     } finally {
-      setIsSyncingPlayer(false)
-    }
-  }
-
-  // Add the sync function HERE (before the return statement)
-  const handleSyncFromGoogleSheets = async () => {
-    setIsSyncing(true)
-    setSyncStatus('')
-    
-    try {
-      const result = await syncPlayersFromGoogleSheets()
-      setSyncStatus(result.message)
-    } catch (error) {
-      setSyncStatus('Failed to sync players from Google Sheets')
-    } finally {
-      setIsSyncing(false)
+      setIsLoading(false)
     }
   }
 
@@ -340,31 +225,8 @@ export default function BookingForm() {
         <div className="space-y-4 sm:space-y-6">
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-blue-800">Player found: <strong>{playerName}</strong></p>
-            
-            {isValidatingSync && (
-              <p className="text-sm text-blue-600 mt-2">Validating sync status...</p>
-            )}
-            
-            {syncValidation && !syncValidation.ready && (
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <p className="text-yellow-800 text-sm">{syncValidation.message}</p>
-                <button
-                  onClick={handleSyncPlayer}
-                  disabled={isSyncingPlayer}
-                  className="mt-2 px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 disabled:opacity-50"
-                >
-                  {isSyncingPlayer ? 'Syncing...' : 'Sync Player Data'}
-                </button>
-              </div>
-            )}
-            
-            {syncValidation?.ready && (
-              <p className="text-sm text-green-600 mt-2">✅ Player data is synced and ready for booking!</p>
-            )}
           </div>
           
-          {/* Only show booking form if sync validation passes */}
-          {syncValidation?.ready && (
             <div className="space-y-4">
             <div>
               <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
@@ -407,14 +269,14 @@ export default function BookingForm() {
                             {session.startTime} - {session.endTime}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {session.maxPlayers} spots available
+                            {session.availableSpots ?? session.maxPlayers} spots available
                           </p>
                         </div>
                         <button
                           onClick={() => handleBookSession(session)}
-                          disabled={isLoading || session.maxPlayers <= 0}
+                          disabled={isLoading || (session.availableSpots ?? session.maxPlayers) <= 0}
                           className={`w-full py-2 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm ${
-                            isLoading || session.maxPlayers <= 0
+                            isLoading || (session.availableSpots ?? session.maxPlayers) <= 0
                               ? 'bg-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 hover:bg-blue-700'
                           }`}
@@ -431,14 +293,14 @@ export default function BookingForm() {
                             {session.startTime} - {session.endTime}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {session.maxPlayers} spots available
+                            {session.availableSpots ?? session.maxPlayers} spots available
                           </p>
                         </div>
                         <button
                           onClick={() => handleBookSession(session)}
-                          disabled={isLoading || session.maxPlayers <= 0}
+                          disabled={isLoading || (session.availableSpots ?? session.maxPlayers) <= 0}
                           className={`px-4 py-2 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                            isLoading || session.maxPlayers <= 0
+                            isLoading || (session.availableSpots ?? session.maxPlayers) <= 0
                               ? 'bg-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 hover:bg-blue-700'
                           }`}
@@ -452,7 +314,6 @@ export default function BookingForm() {
               </div>
             )}
             </div>
-          )}
         </div>
       )}
 
@@ -468,21 +329,23 @@ export default function BookingForm() {
           <pre className="whitespace-pre-wrap font-sans">{bookingStatus.message}</pre>
         </div>
       )}
-      
-      {/* Add development tools INSIDE the component */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 p-2 bg-yellow-100 border border-yellow-300 rounded">
-          <p className="text-sm text-yellow-800 mb-2">Development Tools:</p>
-          <button
-            onClick={handleSyncFromGoogleSheets}
-            disabled={isSyncing}
-            className="px-3 py-1 text-sm bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300"
-          >
-            {isSyncing ? 'Syncing...' : 'Force Sync from Sheets'}
-          </button>
-          {syncStatus && (
-            <p className="text-sm text-yellow-700 mt-1">{syncStatus}</p>
-          )}
+
+      {/* Payment instructions */}
+      {bookingStatus?.success && bankReference && (
+        <div className="mt-4 sm:mt-6 p-4 sm:p-6 bg-green-50 border border-green-200 rounded-md text-green-800 space-y-3 text-sm sm:text-base">
+          <p className="font-semibold">
+            Thanks for your booking! Once we receive your payment, your name will show up in 'Next session'.
+          </p>
+          <div className="space-y-1">
+            <p className="font-bold">📜 PAYMENT INSTRUCTIONS:</p>
+            <p>💰 <span className="font-medium">Amount:</span> $8.00</p>
+            <p>🏷️ <span className="font-medium">Name:</span> Mareeba&nbsp;Badminton</p>
+            <p>🏦 <span className="font-medium">BSB:</span> 633-000</p>
+            <p>🏛️ <span className="font-medium">Account:</span> 225&nbsp;395&nbsp;003</p>
+            <p>💳 <span className="font-medium">PayID&nbsp;(ABN):</span> 61&nbsp;470&nbsp;216&nbsp;342</p>
+            <p>📝 <span className="font-medium">Reference:</span> {bankReference}</p>
+          </div>
+          <p className="pt-2">⚠️ Please use the reference "{bankReference}" for your payment.</p>
         </div>
       )}
     </div>

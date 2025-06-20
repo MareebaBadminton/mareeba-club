@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   player_id TEXT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
   session_date DATE NOT NULL,
   session_time TEXT NOT NULL,
-  status TEXT DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
   payment_reference TEXT,
   payment_confirmed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),

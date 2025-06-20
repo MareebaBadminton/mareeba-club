@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { clearAllUserData, clearAllData, getData } from '@/lib/utils/storage';
-import { migrateLocalStorageToSupabase, migrateGoogleSheetsToSupabase } from '@/lib/migrate-to-supabase';
+import { migrateLocalStorageToSupabase } from '@/lib/migrate-to-supabase';
 
 export default function AdminPage() {
   const [message, setMessage] = useState('');
@@ -63,24 +63,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleGoogleSheetsMigration = async () => {
-    if (confirm('This will import all data from your Google Sheets (IDLists and Bookings) into Supabase. Are you sure you want to proceed?')) {
-      setIsLoading(true);
-      try {
-        const result = await migrateGoogleSheetsToSupabase();
-        if (result.success) {
-          setMessage(`🎉 Google Sheets migration successful! Migrated ${result.playersCount} players, ${result.bookingsCount} bookings, and ${result.sessionsCount} sessions to Supabase. Your players can now book from their own devices!`);
-        } else {
-          setMessage(`❌ Google Sheets migration failed: ${result.error}`);
-        }
-      } catch (error) {
-        setMessage(`❌ Google Sheets migration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
@@ -104,21 +86,6 @@ export default function AdminPage() {
         </div>
 
         <div className="space-y-6">
-          {/* Google Sheets Migration Section */}
-          <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
-            <h3 className="text-lg font-semibold text-green-800 mb-2">📊 Google Sheets to Supabase Migration</h3>
-            <p className="text-sm text-green-700 mb-4">
-              Import all your existing player data and bookings from Google Sheets into Supabase. This will enable live updates and allow players to book from their own devices.
-            </p>
-            <button
-              onClick={handleGoogleSheetsMigration}
-              disabled={isLoading}
-              className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? '🔄 Migrating...' : '🚀 Import from Google Sheets'}
-            </button>
-          </div>
-
           {/* LocalStorage Migration Section */}
           <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
             <h3 className="text-lg font-semibold text-blue-800 mb-2">💾 LocalStorage to Supabase Migration</h3>
@@ -172,8 +139,7 @@ export default function AdminPage() {
         <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="font-semibold text-yellow-800 mb-2">💡 Instructions:</h3>
           <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
-            <li>First, click "Import from Google Sheets" to migrate all your existing data to Supabase</li>
-            <li>Once successful, players will be able to book sessions from their own devices</li>
+            <li>You can migrate any data stored locally in your browser to Supabase database.</li>
             <li>You can then clear local storage data if everything is working correctly</li>
             <li>Make sure your Supabase environment variables are properly configured</li>
           </ol>

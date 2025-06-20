@@ -51,6 +51,7 @@ export interface Database {
           status: string
           payment_reference: string | null
           payment_confirmed: boolean
+          fee: number
           created_at: string
           updated_at: string
         }
@@ -62,6 +63,7 @@ export interface Database {
           status?: string
           payment_reference?: string | null
           payment_confirmed?: boolean
+          fee?: number
           created_at?: string
           updated_at?: string
         }
@@ -73,6 +75,7 @@ export interface Database {
           status?: string
           payment_reference?: string | null
           payment_confirmed?: boolean
+          fee?: number
           created_at?: string
           updated_at?: string
         }

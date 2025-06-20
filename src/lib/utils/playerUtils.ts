@@ -50,18 +50,6 @@ export async function getAllPlayers(): Promise<Player[]> {
 }
 
 // Get player by ID from Supabase
-// Update convertSupabaseToPlayer function
-// Remove the old function and keep only the clean version
-function convertSupabaseToPlayer(players: any[]): Player[] {
-  return players.map(player => ({
-    id: player.id,
-    firstName: player.first_name,
-    lastName: player.last_name,
-    email: player.email,
-    registeredAt: player.registered_at
-  }))
-}
-
 // Update getPlayerById function
 export async function getPlayerById(id: string): Promise<Player | null> {
   const { data, error } = await supabase

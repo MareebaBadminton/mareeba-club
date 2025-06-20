@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { getAllBookings, getPlayerBookings, syncBookingsFromGoogleSheets } from '@/lib/utils/bookingUtils'
-import { getAllPlayers, getPlayerById, syncPlayersFromGoogleSheets } from '@/lib/utils/playerUtils'
+import { getAllBookings, getPlayerBookings } from '@/lib/utils/bookingUtils'
+import { getAllPlayers, getPlayerById } from '@/lib/utils/playerUtils'
 import type { Booking, Player } from '@/lib/types/player'
 
 export default function BookingLookup() {
@@ -21,12 +21,6 @@ export default function BookingLookup() {
     setBookings([])
 
     try {
-      // Sync data from Google Sheets first
-      await Promise.all([
-        syncPlayersFromGoogleSheets(),
-        syncBookingsFromGoogleSheets()
-      ])
-
       if (lookupMethod === 'name') {
         // Get all players with matching name
         const allPlayers = await getAllPlayers()
@@ -74,6 +68,21 @@ export default function BookingLookup() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Helper to show user-friendly booking ID
+  const getDisplayId = (booking: Booking) => {
+    // Show original composite ID if it was already saved that way
+    if (!booking.id || booking.id.includes('_')) return booking.id
+
+    // Detect UUID format and convert to readable ID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (uuidRegex.test(booking.id)) {
+      return `${booking.playerId}_${booking.sessionDate}_${booking.fee}`
+    }
+
+    // Fallback to whatever we have
+    return booking.id
   }
 
   return (
@@ -180,7 +189,7 @@ export default function BookingLookup() {
               key={booking.id}
               className="p-4 bg-gray-50 border border-gray-200 rounded-md"
             >
-              <p className="font-medium text-gray-900">Booking ID: {booking.id}</p>
+              <p className="font-medium text-gray-900">Booking ID: {getDisplayId(booking)}</p>
               <p className="text-gray-600">Date: {booking.sessionDate}</p>
               <p className="text-gray-600">
                 Status: <span className="capitalize">{booking.status}</span>

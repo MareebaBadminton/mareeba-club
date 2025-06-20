@@ -1,33 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getPlayersFromSheet } from '@/lib/utils/googleSheets';
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    // Check if Google Sheets is properly configured
-    const isGoogleSheetsConfigured = process.env.GOOGLE_SHEETS_SPREADSHEET_ID && 
-                                   process.env.GOOGLE_SHEETS_SPREADSHEET_ID !== 'placeholder';
+    // Get players from Supabase
+    const { data: players, error } = await supabase
+      .from('players')
+      .select('*');
 
-    if (!isGoogleSheetsConfigured) {
-      return NextResponse.json({ 
-        success: true, 
-        players: [],
-        message: 'Google Sheets not configured - using local storage only' 
-      });
+    if (error) {
+      throw error;
     }
 
-    // Get players from Google Sheets
-    const playersFromSheet = await getPlayersFromSheet();
-    
     return NextResponse.json({ 
       success: true, 
-      players: playersFromSheet,
-      message: `Loaded ${playersFromSheet.length} players from Google Sheets` 
+      players: players,
+      message: `Loaded ${players.length} players from Supabase` 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Sync API Error:', error);
     return NextResponse.json(
-      { success: true, players: [], error: 'Google Sheets unavailable - using local storage only' },
-      { status: 200 }
+      { success: false, players: [], error: `Error fetching from Supabase: ${error.message}` },
+      { status: 500 }
     );
   }
 }

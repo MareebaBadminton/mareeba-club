@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { syncPlayersFromGoogleSheets, getAllPlayers } from '@/lib/utils/playerUtils'
+import { getPlayerByEmail } from '@/lib/utils/playerUtils'
 import type { Player } from '@/lib/types/player'
 
 export default function FindPlayerID() {
@@ -17,14 +17,8 @@ export default function FindPlayerID() {
     setFoundPlayer(null)
 
     try {
-      // Sync players from Google Sheets first to get the latest data
-      await syncPlayersFromGoogleSheets()
-
-      // Get all players and search by email
-      const allPlayers = await getAllPlayers()
-      const player = allPlayers.find(
-        (p: Player) => p.email.toLowerCase() === email.toLowerCase().trim()
-      )
+      // Get player by email from Supabase
+      const player = await getPlayerByEmail(email.trim())
 
       if (player) {
         setFoundPlayer(player)

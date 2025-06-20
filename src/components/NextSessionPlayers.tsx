@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getAllBookings, getNextSessionDate, getAllSessions } from '@/lib/utils/bookingUtils'
-import { getPlayerById } from '@/lib/utils/playerUtils'
+import { getNextSessionDate, getAllSessions } from '@/lib/utils/bookingUtils'
 import type { Booking, Session, Player } from '@/lib/types/player'
 
 export default function NextSessionPlayers() {
@@ -15,70 +14,60 @@ export default function NextSessionPlayers() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  useEffect(() => {
-    loadNextSession()
-    
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel('bookings-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'bookings' },
-        (payload) => {
-          console.log('Booking changed:', payload)
-          loadNextSession() // Refresh data when bookings change
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
   const loadNextSession = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
-      const sessions = await getAllSessions()
-      const nextDate = await getNextSessionDate()
-      
+      const sessions = await getAllSessions();
+      const nextDate = await getNextSessionDate();
+
       if (!nextDate) {
-        setError('No upcoming sessions found')
-        return
+        setError('No upcoming sessions found');
+        setLoading(false);
+        return;
       }
 
       const targetDate = new Date(nextDate)
       const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
-      const session = sessions.find(s => s.dayOfWeek === dayOfWeek)
-      
-      if (!session) {
-        setError('No session configuration found for the next date')
-        return
-      }
 
-      const allBookings = await getAllBookings()
-      const sessionBookings = allBookings.filter(
-        booking =>
-          booking.sessionDate === nextDate &&
-          booking.sessionTime === `${session.startTime}-${session.endTime}` &&
-          booking.status === 'confirmed'
+      // Match irrespective of capitalisation / casing
+      const session = sessions.find(
+        s => s.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase()
       )
 
-      const playerPromises = sessionBookings.map(async booking => {
-        const player = await getPlayerById(booking.playerId)
-        if (player) {
-          return {
-            id: player.id,
-            name: `${player.firstName} ${player.lastName}`
-          }
-        }
-        return null
+      if (!session) {
+        setError('No session configuration found for the next date');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch *all* confirmed bookings for the target date, then match the times on the client so we
+      // catch both legacy records that stored only the start time (e.g. "19:30") and newer records
+      // that store the full range (e.g. "19:30-21:30").
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('player_id, session_time, players!inner(first_name,last_name)')
+        .eq('session_date', nextDate)
+        .eq('payment_confirmed', true)
+
+      if (bookingsError) {
+        throw bookingsError
+      }
+
+      // Accept session_time stored as just the startTime or the full range.
+      const relevantBookings = bookings.filter((b: any) => {
+        const t = b.session_time as string | null
+        if (!t) return false
+        return t === session.startTime || t === `${session.startTime}-${session.endTime}`
       })
 
-      const playerResults = (await Promise.all(playerPromises)).filter((result): result is {id: string, name: string} => result !== null)
-      const players = playerResults.map(result => result.name)
-      const availableSpots = session.maxPlayers - players.length
+      const players = relevantBookings.map((booking: any) => {
+        const player = booking.players
+        return player ? `${player.first_name} ${player.last_name}` : booking.player_id
+      })
+
+      const availableSpots = session.maxPlayers - players.length;
 
       setNextSession({
         date: nextDate,
@@ -95,6 +84,38 @@ export default function NextSessionPlayers() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // Initial load
+    loadNextSession();
+  
+    // Set up polling every 30 seconds
+    const pollInterval = setInterval(() => {
+      loadNextSession();
+    }, 30000);
+  
+    // Set up real-time subscription (keep as backup)
+    const channel = supabase
+      .channel('bookings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        () => {
+          loadNextSession();
+        }
+      )
+      .subscribe();
+  
+    // Cleanup function
+    return () => {
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -129,10 +150,15 @@ export default function NextSessionPlayers() {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-          Next Session
-        </h2>
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-lg font-semibold text-gray-800">
+          {new Date(nextSession.date).toLocaleDateString('en-AU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </p>
         <button
           onClick={loadNextSession}
           className="text-blue-600 hover:text-blue-800 text-sm"
@@ -143,14 +169,6 @@ export default function NextSessionPlayers() {
       </div>
       
       <div className="mb-4">
-        <p className="text-lg font-semibold text-gray-800">
-          {new Date(nextSession.date).toLocaleDateString('en-AU', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
-        </p>
         <p className="text-gray-600">
           {nextSession.session.startTime} - {nextSession.session.endTime}
         </p>

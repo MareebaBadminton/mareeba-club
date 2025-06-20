@@ -41,32 +41,6 @@ export default function RegisterForm() {
         ? 'Registration complete and synced!' 
         : 'Registration complete. Sync in progress...'
       
-      // Send Player ID via email
-      try {
-        const emailResponse = await fetch('/api/send-player-id', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email,
-            firstName,
-            lastName,
-            playerId: newPlayer.id,
-          }),
-        });
-
-        const emailResult = await emailResponse.json();
-        
-        if (emailResult.success) {
-          console.log('Player ID email sent successfully');
-        } else {
-          console.warn('Failed to send Player ID email:', emailResult.error);
-        }
-      } catch (emailError) {
-        console.warn('Email sending error:', emailError);
-      }
-
       setRegisteredPlayer({
         id: newPlayer.id,
         firstName: newPlayer.firstName,
@@ -97,9 +71,6 @@ export default function RegisterForm() {
           <p className="font-mono text-base sm:text-lg mt-1 break-all">{registeredPlayer.id}</p>
           <p className="text-xs sm:text-sm mt-2 text-green-600">
             {registeredPlayer.syncStatus}
-          </p>
-          <p className="text-xs sm:text-sm mt-2 text-gray-600">
-            📧 We've sent your Player ID to your email address.
           </p>
           <p className="text-xs sm:text-sm mt-2 text-blue-600">
             💡 You can now use this ID to book sessions!

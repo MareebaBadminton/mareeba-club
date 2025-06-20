@@ -3,6 +3,13 @@ import type { Booking, Session } from '../types/player'
 import { getData, setData } from './storage'
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '../supabase'
+import { createPayment } from './paymentUtils' // Import createPayment
+// REMOVE THIS LINE: import { addBookingToSheet } from './googleSheets'
+
+// Cache variables for performance optimization
+const CACHE_DURATION = 5000 // 5 seconds
+let sessionsCache: { data: Session[]; timestamp: number } | null = null
+let bookingsCache: { data: Booking[]; timestamp: number } | null = null
 
 // Get all sessions from Supabase
 export async function getAllSessions(): Promise<Session[]> {
@@ -22,7 +29,7 @@ export async function getAllSessions(): Promise<Session[]> {
     // Convert Supabase format to our Session interface
     return sessions.map(session => ({
       id: session.id,
-      dayOfWeek: session.day_of_week,
+      dayOfWeek: (session.day_of_week || '').trim(),
       startTime: session.start_time,
       endTime: session.end_time,
       maxPlayers: session.max_players,
@@ -44,9 +51,11 @@ export async function getAllBookings(): Promise<Booking[]> {
       .order('session_date', { ascending: true })
       .order('session_time', { ascending: true })
     
-    if (error) {
-      console.error('Error fetching bookings from Supabase:', error)
-      // Fallback to localStorage if Supabase fails
+    if (error || !bookings || bookings.length === 0) {
+      if (error) {
+        console.error('Error fetching bookings from Supabase:', error)
+      }
+      // Fallback to localStorage only (legacy Google Sheets path removed)
       return getData('BOOKINGS') as Booking[]
     }
     
@@ -104,235 +113,154 @@ export async function getPlayerBookings(playerId: string): Promise<Booking[]> {
   }
 }
 
-// Create a new booking in Supabase
+// Create a new booking in Supabase, create a payment, and sync to Google Sheets
 export async function createBooking(
   playerId: string,
   sessionDate: string,
-  sessionTime: string
+  sessionTime: string,
+  sessionFee: number
 ): Promise<{ success: boolean; booking?: Booking; error?: string }> {
   try {
-    // Check for duplicate booking first
+    // 1. Check for duplicate booking first
     const { data: existingBookings, error: checkError } = await supabase
       .from('bookings')
       .select('id')
       .eq('player_id', playerId)
       .eq('session_date', sessionDate)
       .eq('session_time', sessionTime)
-      .in('status', ['confirmed', 'pending']) // Check for both pending and confirmed bookings
-    
+      .in('status', ['confirmed', 'pending'])
+
     if (checkError) {
       console.error('Error checking for existing booking:', checkError)
-      return createBookingLocalStorage(playerId, sessionDate, sessionTime)
+      return { success: false, error: `Database error: ${checkError.message}` }
     }
-    
+
     if (existingBookings && existingBookings.length > 0) {
       return { success: false, error: 'You already have a booking for this session' }
     }
-    
+
+    // 2. Determine legacy-friendly ID (playerId_date_sequence)
+    let sequence = 1
+    try {
+      const { count } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_date', sessionDate)
+        .eq('session_time', sessionTime)
+
+      sequence = (count || 0) + 1
+    } catch (seqErr) {
+      console.warn('Unable to compute booking sequence, defaulting to 1', seqErr)
+    }
+
+    const legacyId = `${playerId}_${sessionDate}_${sequence}`
+
+    // 3. Create the booking in Supabase (explicit ID to keep legacy pattern)
     const newBookingData = {
+      id: legacyId,
       player_id: playerId,
       session_date: sessionDate,
       session_time: sessionTime,
-      status: 'pending', // Start as pending until payment is confirmed
-      payment_confirmed: false
+      status: 'pending',
+      payment_confirmed: false,
+      fee: sessionFee,
     }
-    
+
     const { data: booking, error } = await supabase
       .from('bookings')
       .insert([newBookingData])
       .select()
       .single()
-    
+
     if (error) {
       console.error('Error creating booking in Supabase:', error)
-      return createBookingLocalStorage(playerId, sessionDate, sessionTime)
+      return { success: false, error: `Failed to create booking: ${error.message}` }
     }
-    
-    // Convert to our interface format
+
     const newBooking: Booking = {
       id: booking.id,
       playerId: booking.player_id,
       sessionDate: booking.session_date,
       sessionTime: booking.session_time,
-      status: booking.status, // Will be 'pending'
+      status: booking.status,
       paymentStatus: booking.payment_confirmed ? 'paid' : 'pending',
-      fee: 8,
-      createdAt: booking.created_at
+      fee: booking.fee,
+      createdAt: booking.created_at,
     }
-    
-    // Also save to localStorage as backup
-    const localBookings = getData('BOOKINGS') as Booking[]
-    localBookings.push(newBooking)
-    setData('BOOKINGS', localBookings)
-    
-    return { success: true, booking: newBooking }
-    
-  } catch (error) {
-    console.error('Error connecting to Supabase:', error)
-    return createBookingLocalStorage(playerId, sessionDate, sessionTime)
-  }
-}
 
-// Fallback function for localStorage booking creation
-function createBookingLocalStorage(
-  playerId: string,
-  sessionDate: string,
-  sessionTime: string
-): { success: boolean; booking?: Booking; error?: string } {
-  try {
-    const bookings = getData('BOOKINGS') as Booking[]
-    
-    // Check for duplicate booking (both pending and confirmed)
-    const existingBooking = bookings.find(b => 
-      b.playerId === playerId && 
-      b.sessionDate === sessionDate && 
-      b.sessionTime === sessionTime &&
-      (b.status === 'confirmed' || b.status === 'pending')
-    )
-    
-    if (existingBooking) {
-      return { success: false, error: 'You already have a booking for this session' }
-    }
-    
-    const newBooking: Booking = {
-      id: uuidv4(),
-      playerId,
-      sessionDate,
-      sessionTime,
-      status: 'pending', // Start as pending until payment is confirmed
-      paymentStatus: 'pending',
-      fee: 8,
-      createdAt: new Date().toISOString()
-    }
-    
-    bookings.push(newBooking)
-    setData('BOOKINGS', bookings)
-    
-    return { success: true, booking: newBooking }
-  } catch (error) {
-    console.error('Error creating booking in localStorage:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }
-  }
-}
-
-// Get Australian date/time helper function
-// Remove this entire function (lines 220-223):
-// function getAustralianDateTime(): Date {
-//   return new Date(new Date().toLocaleString("en-US", {timeZone: "Australia/Brisbane"}))
-// }
-
-// Get next session date (same logic as before)
-export async function getNextSessionDate(): Promise<string> {
-  const now = getAustralianDateTime()
-  const sessions = await getAllSessions()
-  
-  const upcoming: { date: string; session: Session }[] = []
-  
-  for (let i = 0; i < 14; i++) {
-    const date = new Date(now)
-    date.setDate(date.getDate() + i)
-    const dateStr = date.toLocaleDateString('en-CA', {
-      timeZone: 'Australia/Brisbane'
+    // 4. Create a corresponding payment record
+    const paymentReference = `MBBC-${newBooking.id.substring(0, 8).toUpperCase()}`
+    await createPayment({
+      bookingId: newBooking.id,
+      playerId: newBooking.playerId,
+      amount: newBooking.fee,
+      paymentReference: paymentReference
     })
-    
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
-    const matchingSessions = sessions.filter(s => s.dayOfWeek === dayOfWeek)
-    
-    matchingSessions.forEach(session => {
-      if (i === 0) {
-        const sessionEndTime = new Date(date)
-        const [endHours, endMinutes] = session.endTime.split(':')
-        sessionEndTime.setHours(parseInt(endHours), parseInt(endMinutes))
-        
-        if (sessionEndTime > now) {
-          upcoming.push({ date: dateStr, session })
-        }
-      } else {
-        upcoming.push({ date: dateStr, session })
-      }
-    })
-  }
-  
-  upcoming.sort((a, b) => {
-    const dateCompare = a.date.localeCompare(b.date)
-    if (dateCompare !== 0) return dateCompare
-    return a.session.startTime.localeCompare(b.session.startTime)
-  })
-  
-  return upcoming[0]?.date || now.toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' })
-}
 
-// Update booking payment status in Supabase
-export async function updateBookingPaymentStatus(
-  bookingId: string,
-  confirmed: boolean
-): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('bookings')
-      .update({ 
-        payment_confirmed: confirmed,
-        status: confirmed ? 'confirmed' : 'pending', // Change status based on payment confirmation
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', bookingId)
-    
-    if (error) {
-      console.error('Error updating booking payment status in Supabase:', error)
-      return false
-    }
-    
-    // Also update localStorage as backup
-    const bookings = getData('BOOKINGS') as Booking[]
-    const bookingIndex = bookings.findIndex(b => b.id === bookingId)
-    if (bookingIndex !== -1) {
-      bookings[bookingIndex].paymentStatus = confirmed ? 'paid' : 'pending'
-      bookings[bookingIndex].status = confirmed ? 'confirmed' : 'pending' // Update status too
-      setData('BOOKINGS', bookings)
-    }
-    
-    return true
-  } catch (error) {
-    console.error('Error connecting to Supabase:', error)
-    return false
+    // Legacy Google Sheets sync removed.
+
+    clearBookingCache() // Clear cache after successful booking
+
+    return { success: true, booking: newBooking }
+  } catch (error: any) {
+    console.error('An unexpected error occurred during booking creation:', error)
+    return { success: false, error: error.message || 'An unexpected error occurred' }
   }
 }
 
-// Find booking by reference - check Supabase first
-export async function findBookingByReference(reference: string): Promise<Booking | null> {
-  try {
-    const allBookings = await getAllBookings()
-    return allBookings.find(booking => booking.id === reference) || null
-  } catch (error) {
-    console.error('Error finding booking by reference:', error)
-    return null
-  }
-}
-
-// Get available sessions for a date
-export async function getAvailableSessions(date: string): Promise<Session[]> {
+// Returns sessions that still have capacity together with the number of remaining spots
+export async function getAvailableSessions(date: string): Promise<(Session & { availableSpots: number })[]> {
   try {
     const targetDate = new Date(date)
     const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
     
-    const sessions = await getAllSessions()
+    // Use cached data if available and fresh
+    const now = Date.now()
+    let sessions: Session[]
+    let allBookings: Booking[]
+    
+    // Get sessions (cache for 30 seconds)
+    if (sessionsCache && (now - sessionsCache.timestamp) < CACHE_DURATION) {
+      sessions = sessionsCache.data
+    } else {
+      sessions = await getAllSessions()
+      sessionsCache = { data: sessions, timestamp: now }
+    }
+    
+    // Get bookings (cache for 30 seconds)
+    if (bookingsCache && (now - bookingsCache.timestamp) < CACHE_DURATION) {
+      allBookings = bookingsCache.data
+    } else {
+      allBookings = await getAllBookings()
+      bookingsCache = { data: allBookings, timestamp: now }
+    }
+    
     const availableSessions = sessions.filter(s => s.dayOfWeek === dayOfWeek)
     
     // Get existing CONFIRMED bookings for this date (don't count pending bookings)
-    const allBookings = await getAllBookings()
-    const confirmedBookings = allBookings.filter(b => 
-      b.sessionDate === date && b.status === 'confirmed'
+    const confirmedBookings = allBookings.filter(
+      (b) => b.sessionDate === date && b.status === 'confirmed'
     )
     
-    // Filter out full sessions (only count confirmed bookings)
-    return availableSessions.filter(session => {
-      const sessionTime = `${session.startTime}-${session.endTime}`
-      const bookingCount = confirmedBookings.filter(b => b.sessionTime === sessionTime).length
-      return bookingCount < session.maxPlayers
-    })
+    // Calculate remaining spots for each session
+    const sessionsWithAvailability: (Session & { availableSpots: number })[] = availableSessions.map(
+      (session) => {
+        const fullRange = `${session.startTime}-${session.endTime}`
+        const bookingCount = confirmedBookings.filter((b) => {
+          if (!b.sessionTime) return false
+          return b.sessionTime === fullRange || b.sessionTime === session.startTime
+        }).length
+        const remaining = session.maxPlayers - bookingCount
+
+        return {
+          ...session,
+          availableSpots: remaining,
+        }
+      }
+    )
+    
+    // Return only those that still have capacity
+    return sessionsWithAvailability.filter((s) => s.availableSpots > 0)
   } catch (error) {
     console.error('Error getting available sessions:', error)
     return []
@@ -370,6 +298,12 @@ export async function cancelBooking(bookingId: string): Promise<boolean> {
   }
 }
 
+// Add this function to clear cache when data changes
+export function clearBookingCache() {
+  sessionsCache = null
+  bookingsCache = null
+}
+
 // Legacy sync functions (kept for compatibility but now use Supabase)
 export async function syncBookingsFromGoogleSheets(): Promise<{ success: boolean; count: number; message: string }> {
   try {
@@ -392,4 +326,53 @@ export async function syncBookingsFromGoogleSheets(): Promise<{ success: boolean
       message: 'Error syncing from Supabase'
     }
   }
+}
+
+// Function to get the date of the next upcoming session
+export async function getNextSessionDate(): Promise<string | null> {
+  const sessions = await getAllSessions();
+  if (!sessions || sessions.length === 0) {
+    return null;
+  }
+
+  const now = new Date(getAustralianDateTime());
+  const dayOfWeek = now.getDay(); // Sunday - 0, Monday - 1, etc.
+
+  // Find the next session date
+  for (let i = 0; i < 7; i++) {
+    const nextDate = new Date(now);
+    nextDate.setDate(now.getDate() + i);
+    const nextDayOfWeek = nextDate.getDay();
+
+    const sessionExists = sessions.some(session => {
+      const sessionDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(session.dayOfWeek);
+      return sessionDay === nextDayOfWeek;
+    });
+
+    if (sessionExists) {
+      return nextDate.toISOString().split('T')[0];
+    }
+  }
+
+  return null;
+}
+
+export async function findBookingByReference(reference: string): Promise<Booking | null> {
+  const allBookings = await getAllBookings();
+  const booking = allBookings.find(b => b.id.substring(0, 8).toUpperCase() === reference.toUpperCase().replace('MBBC-', ''));
+  return booking || null;
+}
+
+export async function updateBookingPaymentStatus(bookingId: string, paymentStatus: 'paid' | 'pending'): Promise<boolean> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({ payment_confirmed: paymentStatus === 'paid', status: 'confirmed' })
+    .eq('id', bookingId);
+
+  if (error) {
+    console.error('Error updating booking payment status:', error);
+    return false;
+  }
+  clearBookingCache();
+  return true;
 }

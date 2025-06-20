@@ -6,7 +6,6 @@ import Image from 'next/image'
 // Add this import at the top of the file
 import RegisterForm from '@/components/RegisterForm'
 import NextSessionPlayers from '@/components/NextSessionPlayers'
-import PaymentTracker from '@/components/PaymentTracker'
 import BookingForm from '@/components/BookingForm'
 import BookingLookup from '@/components/BookingLookup'
 import FindPlayerID from '@/components/FindPlayerID'
@@ -20,7 +19,6 @@ export default function Home() {
     { id: 'book', label: 'Book Session' },
     { id: 'lookup', label: 'Find Booking' },
     { id: 'next-session', label: 'Next Session' },
-    { id: 'payments', label: 'Payments' },
     { id: 'find-id', label: 'Find your ID' }
   ]
 
@@ -45,7 +43,7 @@ export default function Home() {
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-2 sm:px-6">
-          <nav className="grid grid-cols-7 gap-0">
+          <nav className="grid grid-cols-6 gap-0">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -83,13 +81,32 @@ export default function Home() {
                 />
               </div>
               
-              <p className="text-black text-lg sm:text-xl mb-4">
-                Join our friendly community of badminton players in Mareeba. Whether you're a beginner or an experienced player, everyone is welcome!
-              </p>
-              
-              <p className="text-black text-lg sm:text-xl mb-8">
-                We encourage everyone to register and book through our website—why? Because it's FREE, and booking online is even cheaper! So what are you waiting for?
-              </p>
+              {/* Updated intro & fee information */}
+              <div className="mb-8 sm:mb-10 space-y-4 text-black text-lg sm:text-xl">
+                <p>🏸 <strong>Join the Mareeba Badminton Community!</strong><br/>
+                  Whether you're just starting out or a seasoned player, everyone is welcome to join our friendly sessions.</p>
+
+                <p>💻 <strong>Register and book online — it's FREE</strong> to sign up, and online bookings are cheaper than walk-ins!</p>
+
+                <div>
+                  <p className="font-bold mb-1">💰 Fees:</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>Online booking: $8</li>
+                    <li>Walk-in: $10</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-bold mb-1">📅 Session Times:</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    <li>Monday: 8:00&nbsp;PM – 10:00&nbsp;PM</li>
+                    <li>Friday: 7:30&nbsp;PM – 9:30&nbsp;PM</li>
+                    <li>Sunday: 2:30&nbsp;PM – 4:30&nbsp;PM</li>
+                  </ul>
+                </div>
+
+                <p className="font-medium">So what are you waiting for? Grab your racquet and join the fun!</p>
+              </div>
 
               {/* How to Register Section */}
               <div className="mb-8 sm:mb-10">
@@ -230,10 +247,6 @@ export default function Home() {
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Next Session</h2>
               <NextSessionPlayers />
             </div>
-          )}
-          {/* Payments Tab */}
-          {activeTab === 'payments' && (
-            <PaymentTracker />
           )}
 
           {/* Find your ID Tab */}

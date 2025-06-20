@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllBookings, updateBookingPaymentStatus, findBookingByReference, syncBookingsFromGoogleSheets } from '../lib/utils/bookingUtils';
+import { getAllBookings, updateBookingPaymentStatus, findBookingByReference } from '../lib/utils/bookingUtils';
 import { Booking } from '../lib/types/player';
 import { getAllPayments, updatePaymentStatus, createPayment, getPaymentStats, Payment } from '@/lib/utils/paymentUtils'
 
@@ -27,7 +27,6 @@ export default function PaymentTracker() {
 
   useEffect(() => {
     const init = async () => {
-      await syncBookingsFromGoogleSheets();
       await loadData();
     };
     init();
@@ -105,29 +104,12 @@ export default function PaymentTracker() {
       }
 
       // Update booking payment status
-      const success = await updateBookingPaymentStatus(bookingId, true);
+      const success = await updateBookingPaymentStatus(bookingId, 'paid');
       if (!success) {
         throw new Error('Failed to update booking payment status');
       }
-      
-      // Update Google Sheets
-      const response = await fetch('/api/bookings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId: bookingId,
-          playerId: booking.playerId,
-          sessionDate: booking.sessionDate,
-          paymentStatus: 'paid'
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}: Failed to update payment status`);
-      }
+
+      // Legacy Google Sheets sync removed.
       
       setMessage({ 
         type: 'success', 

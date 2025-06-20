@@ -76,31 +76,3 @@ export const migrateLocalStorageToSupabase = async () => {
     }
   }
 }
-
-// Google Sheets migration - moved to API route only
-export const migrateGoogleSheetsToSupabase = async () => {
-  try {
-    // This function now calls the API route instead of direct Google Sheets access
-    const response = await fetch('/api/migrate-sheets', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.message || 'Migration failed')
-    }
-    
-    return result
-    
-  } catch (error) {
-    console.error('Google Sheets migration failed:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }
-  }
-}
