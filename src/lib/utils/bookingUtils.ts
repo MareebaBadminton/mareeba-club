@@ -330,31 +330,31 @@ export async function syncBookingsFromGoogleSheets(): Promise<{ success: boolean
 
 // Function to get the date of the next upcoming session
 export async function getNextSessionDate(): Promise<string | null> {
-  const sessions = await getAllSessions();
-  if (!sessions || sessions.length === 0) {
-    return null;
-  }
+  const sessions = await getAllSessions()
+  if (!sessions.length) return null
 
-  const now = new Date(getAustralianDateTime());
-  const dayOfWeek = now.getDay(); // Sunday - 0, Monday - 1, etc.
+  // Australian date/time with time stripped so "today" counts.
+  const now = new Date(getAustralianDateTime())
+  now.setHours(0, 0, 0, 0)
 
-  // Find the next session date
-  for (let i = 0; i < 7; i++) {
-    const nextDate = new Date(now);
-    nextDate.setDate(now.getDate() + i);
-    const nextDayOfWeek = nextDate.getDay();
+  // Check the next 14 days for the first day that actually has a configured session
+  for (let i = 0; i < 14; i++) {
+    const nextDate = new Date(now)
+    nextDate.setDate(now.getDate() + i)
 
-    const sessionExists = sessions.some(session => {
-      const sessionDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(session.dayOfWeek);
-      return sessionDay === nextDayOfWeek;
-    });
+    const nextDayName = nextDate.toLocaleDateString('en-US', { weekday: 'long' })
 
-    if (sessionExists) {
-      return nextDate.toISOString().split('T')[0];
+    const match = sessions.find(
+      (s) => s.dayOfWeek.toLowerCase() === nextDayName.toLowerCase()
+    )
+
+    if (match) {
+      return nextDate.toISOString().split('T')[0]
     }
   }
 
-  return null;
+  // No upcoming session found within the look-ahead window
+  return null
 }
 
 export async function findBookingByReference(reference: string): Promise<Booking | null> {
