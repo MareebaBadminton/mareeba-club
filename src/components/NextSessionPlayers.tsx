@@ -20,7 +20,9 @@ export default function NextSessionPlayers() {
       setError(null);
 
       const sessions = await getAllSessions();
+      console.log('DEBUG sessions:', sessions.map(s => s.dayOfWeek));
       const nextDate = await getNextSessionDate();
+      console.log('DEBUG nextDate:', nextDate);
 
       if (!nextDate) {
         setError('No upcoming sessions found');
@@ -30,11 +32,13 @@ export default function NextSessionPlayers() {
 
       const targetDate = new Date(nextDate)
       const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
+      console.log('DEBUG dayOfWeek we look for:', dayOfWeek);
 
       // Match irrespective of capitalisation / casing
       const session = sessions.find(
         s => s.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase()
       )
+      console.log('DEBUG matched session:', session);
 
       if (!session) {
         setError('No session configuration found for the next date');
