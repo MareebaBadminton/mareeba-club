@@ -333,29 +333,40 @@ export async function getNextSessionDate(): Promise<string | null> {
   const sessions = await getAllSessions()
   if (!sessions.length) return null
 
-  // Build a set of target day indexes based on configured sessions
-  const targetDayIndexes = sessions.map(s => {
-    return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-      .findIndex(d => d.toLowerCase() === s.dayOfWeek.toLowerCase())
-  }).filter(idx => idx >= 0)
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
-  if (targetDayIndexes.length === 0) return null
+  // Build a quick lookup of valid day names (lower-case)
+  const validDays = new Set(
+    sessions.map(s => s.dayOfWeek.trim().toLowerCase())
+  )
 
-  const todayAU = new Date(getAustralianDateTime())
-  todayAU.setHours(0,0,0,0)
-  const todayIndex = todayAU.getDay()
+  if (validDays.size === 0) return null
 
-  let minDiff = 999
-  targetDayIndexes.forEach(idx => {
-    const diff = (idx - todayIndex + 7) % 7 // 0 means today
-    if (diff < minDiff) minDiff = diff
+  const fmtWeekday = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    timeZone: 'Australia/Brisbane'
   })
 
-  // minDiff is the number of days until the next session day (could be 0)
-  const nextDate = new Date(todayAU)
-  nextDate.setDate(todayAU.getDate() + minDiff)
+  const fmtDate = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Australia/Brisbane'
+  })
 
-  return nextDate.toISOString().split('T')[0]
+  // Check today + next 13 days
+  for (let i = 0; i < 14; i++) {
+    const candidate = new Date()
+    candidate.setDate(candidate.getDate() + i)
+
+    const candidateDayName = fmtWeekday.format(candidate).toLowerCase()
+    if (validDays.has(candidateDayName)) {
+      // format YYYY-MM-DD for Australian zone
+      return fmtDate.format(candidate)
+    }
+  }
+
+  return null
 }
 
 export async function findBookingByReference(reference: string): Promise<Booking | null> {
