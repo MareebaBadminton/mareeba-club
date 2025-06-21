@@ -330,32 +330,32 @@ export async function syncBookingsFromGoogleSheets(): Promise<{ success: boolean
 
 // Function to get the date of the next upcoming session
 export async function getNextSessionDate(): Promise<string | null> {
-  const sessions = await getAllSessions();
-  if (!sessions.length) return null;
+  const sessions = await getAllSessions()
+  if (!sessions.length) return null
 
-  // Australian date/time with the time stripped so "today" counts.
-  const now = new Date(getAustralianDateTime());
-  now.setHours(0, 0, 0, 0);
+  // Build a set of target day indexes based on configured sessions
+  const targetDayIndexes = sessions.map(s => {
+    return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+      .findIndex(d => d.toLowerCase() === s.dayOfWeek.toLowerCase())
+  }).filter(idx => idx >= 0)
 
-  // Look ahead up to 14 days until we hit a configured session day
-  for (let i = 0; i < 14; i++) {
-    const nextDate = new Date(now);
-    nextDate.setDate(now.getDate() + i);
+  if (targetDayIndexes.length === 0) return null
 
-    const nextDayName = nextDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const todayAU = new Date(getAustralianDateTime())
+  todayAU.setHours(0,0,0,0)
+  const todayIndex = todayAU.getDay()
 
-    const match = sessions.find(
-      (s) => s.dayOfWeek.toLowerCase() === nextDayName.toLowerCase()
-    );
+  let minDiff = 999
+  targetDayIndexes.forEach(idx => {
+    const diff = (idx - todayIndex + 7) % 7 // 0 means today
+    if (diff < minDiff) minDiff = diff
+  })
 
-    if (match) {
-      // Return YYYY-MM-DD
-      return nextDate.toISOString().split('T')[0];
-    }
-  }
+  // minDiff is the number of days until the next session day (could be 0)
+  const nextDate = new Date(todayAU)
+  nextDate.setDate(todayAU.getDate() + minDiff)
 
-  // None found in the next two weeks
-  return null;
+  return nextDate.toISOString().split('T')[0]
 }
 
 export async function findBookingByReference(reference: string): Promise<Booking | null> {
