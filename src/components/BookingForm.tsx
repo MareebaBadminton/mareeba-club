@@ -15,7 +15,7 @@ export default function BookingForm() {
   const [availableSessions, setAvailableSessions] = useState<(Session & { availableSpots?: number })[]>([])
   const [bookingStatus, setBookingStatus] = useState<{
     success?: boolean;
-    message: string;
+    message: React.ReactNode;
   } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [bankReference, setBankReference] = useState('')
@@ -165,11 +165,15 @@ export default function BookingForm() {
   
       if (bookingResult.success && bookingResult.booking) {
         const booking = bookingResult.booking;
-        const paymentReference = `MB${playerId}${selectedDate.replace(/-/g, '')}`;
+        const paymentReference = `${playerId}`;
         setBankReference(paymentReference)
         setBookingStatus({
           success: true,
-          message: 'Booking successful! Please see payment details below. Your name will appear in "Next Session" once an administrator confirms your payment.'
+          message: (
+            <>
+              Booking successful! Please see payment details below. Your name will appear in "Next Session" once an administrator confirms your payment. <strong>(Note: It will not appear instantly.)</strong>
+            </>
+          )
         })
       } else {
         setBookingStatus({
@@ -214,9 +218,12 @@ export default function BookingForm() {
               disabled={isLoading}
               className="w-full bg-blue-600 text-white py-3 sm:py-2.5 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 text-sm sm:text-base"
             >
-              {isLoading ? 'Verifying...' : 'Verify Player ID'}
+              {isLoading ? 'Booking...' : 'Book'}
             </button>
           </div>
+
+          {/* Upfront payment instructions removed as requested */}
+
         </form>
       )}
 
@@ -326,15 +333,15 @@ export default function BookingForm() {
               : 'bg-red-50 border border-red-200 text-red-700'
           }`}
         >
-          <pre className="whitespace-pre-wrap font-sans">{bookingStatus.message}</pre>
+          <div className="whitespace-pre-wrap font-sans">{bookingStatus.message}</div>
         </div>
       )}
 
-      {/* Payment instructions */}
-      {bookingStatus?.success && bankReference && (
+      {/* Post-booking confirmation message with payment instructions */}
+      {bookingStatus?.success && (
         <div className="mt-4 sm:mt-6 p-4 sm:p-6 bg-green-50 border border-green-200 rounded-md text-green-800 space-y-3 text-sm sm:text-base">
           <p className="font-semibold">
-            Thanks for your booking! Once we receive your payment, your name will show up in 'Next session'.
+            Thanks for your booking! Once your payment has been confirmed by us, you'll be added to the 'Next session' list.
           </p>
           <div className="space-y-1">
             <p className="font-bold">📜 PAYMENT INSTRUCTIONS:</p>
@@ -343,9 +350,9 @@ export default function BookingForm() {
             <p>🏦 <span className="font-medium">BSB:</span> 633-000</p>
             <p>🏛️ <span className="font-medium">Account:</span> 225&nbsp;395&nbsp;003</p>
             <p>💳 <span className="font-medium">PayID&nbsp;(ABN):</span> 61&nbsp;470&nbsp;216&nbsp;342</p>
-            <p>📝 <span className="font-medium">Reference:</span> {bankReference}</p>
+            <p>📝 <span className="font-medium">Description:</span> {bankReference}</p>
           </div>
-          <p className="pt-2">⚠️ Please use the reference "{bankReference}" for your payment.</p>
+          <p className="pt-2">⚠️ Please use the description "{bankReference}" for your payment.</p>
         </div>
       )}
     </div>

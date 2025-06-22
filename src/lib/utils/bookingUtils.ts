@@ -189,7 +189,7 @@ export async function createBooking(
     }
 
     // 4. Create a corresponding payment record
-    const paymentReference = `MBBC-${newBooking.id.substring(0, 8).toUpperCase()}`
+    const paymentReference = `${playerId}`
     await createPayment({
       bookingId: newBooking.id,
       playerId: newBooking.playerId,
@@ -371,7 +371,7 @@ export async function getNextSessionDate(): Promise<string | null> {
 
 export async function findBookingByReference(reference: string): Promise<Booking | null> {
   const allBookings = await getAllBookings();
-  const booking = allBookings.find(b => b.id.substring(0, 8).toUpperCase() === reference.toUpperCase().replace('MBBC-', ''));
+  const booking = allBookings.find(b => b.playerId === reference.trim());
   return booking || null;
 }
 
@@ -387,4 +387,22 @@ export async function updateBookingPaymentStatus(bookingId: string, paymentStatu
   }
   clearBookingCache();
   return true;
+}
+
+export async function approveSubscription(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .update({ approved: true, approved_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error approving subscription:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error connecting to Supabase:', error);
+    return false;
+  }
 }

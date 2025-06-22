@@ -91,10 +91,7 @@ export default function PaymentTracker() {
         playerId: booking.playerId,
         amount: 8.00, // Session fee
         paymentMethod: 'bank_transfer',
-        paymentReference: paymentReference || `MB${booking.playerId}${(() => {
-          const [year, month, day] = booking.sessionDate.split('-');
-          return `${year}${day}${month}`;
-        })()}`,
+        paymentReference: paymentReference || `${booking.playerId}`,
         status: 'completed',
         paymentDate: new Date().toISOString()
       });
@@ -263,7 +260,7 @@ export default function PaymentTracker() {
           <div className="flex gap-3">
             <input
               type="text"
-              placeholder="Enter payment reference (e.g., MB1234520241215)"
+              placeholder="Enter player ID as payment reference (e.g., 12345)"
               value={searchReference}
               onChange={(e) => setSearchReference(e.target.value)}
               className="flex-1 px-2 py-0.5 border rounded text-sm h-8"
@@ -319,10 +316,7 @@ export default function PaymentTracker() {
                       <p><strong>Player ID:</strong> {booking.playerId}</p>
                       <p><strong>Session:</strong> {booking.sessionDate} at {booking.sessionTime}</p>
                       <p className="text-sm text-gray-600">
-                        <strong>Reference:</strong> MB{booking.playerId}{(() => {
-                          const [year, month, day] = booking.sessionDate.split('-');
-                          return `${year}${day}${month}`;
-                        })()}
+                        <strong>Reference:</strong> {booking.playerId}
                       </p>
                       <p className="text-sm text-gray-600">
                         <strong>Amount:</strong> {formatCurrency(8.00)}

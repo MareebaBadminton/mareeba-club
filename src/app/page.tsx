@@ -96,12 +96,17 @@ export default function Home() {
                   </ul>
                 </div>
 
+                {/* Address before Session Times */}
+                <div>
+                  <p className="font-bold mb-1">📍 Address: 183 Walsh Street, Mareeba</p>
+                </div>
+
                 <div>
                   <p className="font-bold mb-1">📅 Session Times:</p>
                   <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Monday: 8:00&nbsp;PM – 10:00&nbsp;PM</li>
-                    <li>Friday: 7:30&nbsp;PM – 9:30&nbsp;PM</li>
-                    <li>Sunday: 2:30&nbsp;PM – 4:30&nbsp;PM</li>
+                    <li>Monday: 8:00\u00a0PM – 10:00\u00a0PM</li>
+                    <li>Friday: 7:30\u00a0PM – 9:30\u00a0PM</li>
+                    <li>Sunday: 2:30\u00a0PM – 4:30\u00a0PM</li>
                   </ul>
                 </div>
 
@@ -164,7 +169,23 @@ export default function Home() {
                     </li>
                   </ol>
                 </div>
-                  </div>
+              </div>
+
+              {/* Payment Instructions Section */}
+              <div className="mb-8 sm:mb-10">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">💳 Payment Instructions</h3>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 text-gray-800 text-sm sm:text-base space-y-1">
+                  <p className="font-bold text-xl sm:text-2xl mb-3">Only make payment after you booked a session.</p>
+                  <p>💰 <span className="font-medium">Amount:</span> $8.00</p>
+                  <p>🏷️ <span className="font-medium">Name:</span> Mareeba&nbsp;Badminton</p>
+                  <p>🏦 <span className="font-medium">BSB:</span> 633-000</p>
+                  <p>🏛️ <span className="font-medium">Account:</span> 225&nbsp;395&nbsp;003</p>
+                  <p>OR</p>
+                  <p>💳 <span className="font-medium">PayID&nbsp;(ABN):</span> 61&nbsp;470&nbsp;216&nbsp;342</p>
+                  <p>📝 <span className="font-medium">Description:</span> Your&nbsp;5-digit&nbsp;Player&nbsp;ID</p>
+                  <p className="pt-2 text-xs sm:text-sm text-gray-700 font-semibold">⚠️ Use your Player ID exactly as the payment description so we can match your payment quickly.</p>
+                </div>
+              </div>
 
               {/* Quick Tips */}
               <div className="mb-8 sm:mb-10">
@@ -197,7 +218,7 @@ export default function Home() {
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 sm:p-6">
                   <div className="space-y-3 text-gray-700">
                     <p className="text-sm sm:text-base">
-                      <strong>🎾 Racquets:</strong> Available free of charge for all players
+                      <strong>🏸 Racquets:</strong> Available free of charge for all players
                     </p>
                     <p className="text-sm sm:text-base">
                       <strong>🏸 Shuttlecocks:</strong> A limited supply of new shuttlecocks are available at no charge each session - please make them last as long as you can
