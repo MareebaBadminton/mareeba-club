@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 
 // Add this import at the top of the file
@@ -9,9 +9,11 @@ import NextSessionPlayers from '@/components/NextSessionPlayers'
 import BookingForm from '@/components/BookingForm'
 import BookingLookup from '@/components/BookingLookup'
 import FindPlayerID from '@/components/FindPlayerID'
+import UnavailableDatesPopup from '@/components/UnavailableDatesPopup'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home')
+  const [showUnavailableDatesPopup, setShowUnavailableDatesPopup] = useState(false)
 
   const tabs = [
     { id: 'home', label: 'Home' },
@@ -21,6 +23,13 @@ export default function Home() {
     { id: 'next-session', label: 'Next Session' },
     { id: 'find-id', label: 'Find your ID' }
   ]
+
+  // Show popup when user visits Home or Book Session tabs
+  useEffect(() => {
+    if (activeTab === 'home' || activeTab === 'book') {
+      setShowUnavailableDatesPopup(true)
+    }
+  }, [activeTab])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -104,9 +113,8 @@ export default function Home() {
                 <div>
                   <p className="font-bold mb-1">📅 Session Times:</p>
                   <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Monday: 8:00\u00a0PM – 10:00\u00a0PM</li>
-                    <li>Friday: 7:30\u00a0PM – 9:30\u00a0PM</li>
-                    <li>Sunday: 2:30\u00a0PM – 4:30\u00a0PM</li>
+                    <li>Friday: 7:45PM – 9:45PM</li>
+                    <li>Sunday: 12:00PM – 2:00PM</li>
                   </ul>
                 </div>
 
@@ -133,39 +141,6 @@ export default function Home() {
                     <li className="flex items-start">
                       <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">4</span>
                       <span className="text-sm sm:text-base"><strong>Save your Player ID</strong> - you'll need it to book sessions!</span>
-                    </li>
-                  </ol>
-                </div>
-              </div>
-
-              {/* How to Book Section */}
-              <div className="mb-8 sm:mb-10">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">🏸 How to Book a Session</h3>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 sm:p-6">
-                  <ol className="space-y-3 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">1</span>
-                      <span className="text-sm sm:text-base">Click on the <strong>"Book Session"</strong> tab above</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">2</span>
-                      <span className="text-sm sm:text-base">Enter your <strong>5-digit Player ID</strong> and click "Verify"</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">3</span>
-                      <span className="text-sm sm:text-base">Select your preferred <strong>date</strong> for the session</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">4</span>
-                      <span className="text-sm sm:text-base">Choose an available <strong>time slot</strong> and click "Book Session"</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">5</span>
-                      <span className="text-sm sm:text-base">Make your payment using the provided bank details and <strong>payment reference</strong></span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">6</span>
-                      <span className="text-sm sm:text-base">Once you've booked and your payment is confirmed, your name will show up under <strong>'Next Session'</strong>. If it doesn't, head over to <strong>'Find Booking'</strong> to check both your past and upcoming sessions and payments.</span>
                     </li>
                   </ol>
                 </div>
@@ -288,6 +263,12 @@ export default function Home() {
           <p className="text-sm sm:text-base">© 2024 Mareeba Badminton Club. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Unavailable Dates Popup */}
+      <UnavailableDatesPopup
+        isVisible={showUnavailableDatesPopup}
+        onClose={() => setShowUnavailableDatesPopup(false)}
+      />
     </div>
   )
 }

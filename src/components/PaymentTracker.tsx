@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllBookings, updateBookingPaymentStatus, findBookingByReference } from '../lib/utils/bookingUtils';
+import { getAllBookings, updateBookingPaymentStatus, findBookingByReference, cancelBooking } from '../lib/utils/bookingUtils';
 import { Booking } from '../lib/types/player';
 import { getAllPayments, updatePaymentStatus, createPayment, getPaymentStats, Payment } from '@/lib/utils/paymentUtils'
 
@@ -34,23 +34,52 @@ export default function PaymentTracker() {
 
   const loadData = async () => {
     try {
-      // Load bookings and payments
-      const [bookings, allPayments, stats] = await Promise.all([
+      // Step 1: Fetch all bookings, payments, and stats in parallel
+      let [bookings, allPayments, stats] = await Promise.all([
         getAllBookings(),
         getAllPayments(),
         getPaymentStats()
       ]);
-      
-      // Show bookings that are either status='pending' OR paymentStatus='pending'
-      const pending = bookings.filter(b => 
-        b.status === 'pending' || b.paymentStatus === 'pending'
+
+      // Step 2: Identify bookings that have been pending & unpaid for > 48 hours
+      const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+      const now = Date.now();
+
+      const staleBookings = bookings.filter(
+        (b) =>
+          b.status === 'pending' &&
+          b.paymentStatus === 'pending' &&
+          b.createdAt &&
+          new Date(b.createdAt).getTime() < now - FORTY_EIGHT_HOURS_MS
       );
+
+      if (staleBookings.length > 0) {
+        try {
+          // Attempt to cancel all stale bookings in parallel
+          await Promise.all(staleBookings.map((b) => cancelBooking(b.id)));
+        } catch (cancelErr) {
+          console.error('Error cancelling stale bookings:', cancelErr);
+        }
+
+        // Refresh bookings list after cancellations to get latest state
+        bookings = await getAllBookings();
+      }
+
+      // Step 3: Filter pending bookings (status OR payment pending)
+      const pending = bookings.filter(
+        (b) => b.status === 'pending' || b.paymentStatus === 'pending'
+      );
+
+      // Step 4: Update local state
       setPendingBookings(pending);
       setPayments(allPayments);
       setPaymentStats(stats);
     } catch (error) {
       console.error('Error loading data:', error);
-      setMessage({ type: 'error', text: 'Failed to load payment data. Please refresh the page.' });
+      setMessage({
+        type: 'error',
+        text: 'Failed to load payment data. Please refresh the page.',
+      });
     } finally {
       setLoading(false);
     }
@@ -405,17 +434,9 @@ export default function PaymentTracker() {
               <h4 className="text-lg font-semibold text-green-800">Total Amount</h4>
               <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentStats.totalAmount)}</p>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold text-yellow-800">Pending</h4>
-              <p className="text-2xl font-bold text-yellow-600">{paymentStats.pendingPayments}</p>
-            </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="text-lg font-semibold text-green-800">Completed</h4>
               <p className="text-2xl font-bold text-green-600">{paymentStats.completedPayments}</p>
-            </div>
-            <div className="bg-red-50 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold text-red-800">Failed</h4>
-              <p className="text-2xl font-bold text-red-600">{paymentStats.failedPayments}</p>
             </div>
           </div>
         </div>

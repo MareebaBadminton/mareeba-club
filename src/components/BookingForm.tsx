@@ -70,12 +70,33 @@ export default function BookingForm() {
   // Check if selected date is unavailable
   const isDateUnavailable = (dateString: string) => {
     // June 15, 2025 is unavailable
-    return dateString === '2025-06-15';
+    // July dates unavailable: 6th, 7th, 11th, 13th, 18th
+    return dateString === '2025-06-15' || 
+           dateString === '2025-07-06' || 
+           dateString === '2025-07-07' || 
+           dateString === '2025-07-11' || 
+           dateString === '2025-07-13' || 
+           dateString === '2025-07-18';
   };
 
   const getUnavailableDateMessage = (dateString: string) => {
     if (dateString === '2025-06-15') {
       return 'No session on 15/6. Thank you for your understanding.';
+    }
+    if (dateString === '2025-07-06') {
+      return 'No session on 6/7. Thank you for your understanding.';
+    }
+    if (dateString === '2025-07-07') {
+      return 'No session on 7/7. Thank you for your understanding.';
+    }
+    if (dateString === '2025-07-11') {
+      return 'No session on 11/7. Thank you for your understanding.';
+    }
+    if (dateString === '2025-07-13') {
+      return 'No session on 13/7. Thank you for your understanding.';
+    }
+    if (dateString === '2025-07-18') {
+      return 'No session on 18/7. Thank you for your understanding.';
     }
     return '';
   };
@@ -258,12 +279,12 @@ export default function BookingForm() {
               )}
             </div>
 
-            {selectedDate && availableSessions.length > 0 && (
+            {selectedDate && availableSessions.filter(session => session.dayOfWeek !== 'Monday').length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-base sm:text-lg font-medium text-gray-900">Available Sessions</h3>
 
                 <div className="grid gap-3 sm:gap-4">
-                  {availableSessions.map((session) => (
+                  {availableSessions.filter(session => session.dayOfWeek !== 'Monday').map((session) => (
                     <div
                       key={session.id}
                       className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200"

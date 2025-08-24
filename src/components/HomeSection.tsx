@@ -22,16 +22,12 @@ export default function HomeSection() {
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Session Times</h3>
         <div className="space-y-4">
           <div>
-            <h4 className="font-medium text-gray-900">Monday</h4>
-            <p className="text-gray-600">8:00 PM - 10:00 PM</p>
-          </div>
-          <div>
             <h4 className="font-medium text-gray-900">Friday</h4>
-            <p className="text-gray-600">7:30 PM - 9:30 PM</p>
+            <p className="text-gray-600">7:45pm - 9:45pm</p>
           </div>
           <div>
             <h4 className="font-medium text-gray-900">Sunday</h4>
-            <p className="text-gray-600">2:30 PM - 4:30 PM</p>
+            <p className="text-gray-600">2.30pm - 4.30pm</p>
           </div>
         </div>
       </section>

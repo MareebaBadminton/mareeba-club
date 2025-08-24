@@ -388,21 +388,3 @@ export async function updateBookingPaymentStatus(bookingId: string, paymentStatu
   clearBookingCache();
   return true;
 }
-
-export async function approveSubscription(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .update({ approved: true, approved_at: new Date().toISOString() })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error approving subscription:', error);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error('Error connecting to Supabase:', error);
-    return false;
-  }
-}

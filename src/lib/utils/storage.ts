@@ -11,16 +11,16 @@ const DEFAULT_SESSIONS = [
   {
     id: 'friday-evening',
     dayOfWeek: 'Friday',
-    startTime: '19:30',
-    endTime: '21:30',
+    startTime: '19:45',
+    endTime: '21:45',
     maxPlayers: 20,  // Already set to 20
     fee: 8
   },
   {
     id: 'sunday-afternoon',
     dayOfWeek: 'Sunday',
-    startTime: '14:30',
-    endTime: '16:30',
+    startTime: '12:00',
+    endTime: '14:00',
     maxPlayers: 20,  // Already set to 20
     fee: 8
   },

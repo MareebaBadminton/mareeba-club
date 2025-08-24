@@ -16,16 +16,16 @@ export async function POST(request: NextRequest) {
       {
         id: 'friday-evening',
         day_of_week: 'Friday',
-        start_time: '19:30',
-        end_time: '21:30',
+        start_time: '19:45',
+        end_time: '21:45',
         max_players: 20,
         fee: 8
       },
       {
         id: 'sunday-afternoon',
         day_of_week: 'Sunday',
-        start_time: '14:30',
-        end_time: '16:30',
+        start_time: '12:00',
+        end_time: '14:00',
         max_players: 20,
         fee: 8
       },
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
       sessions: data,
       schedule: {
         'Monday': '8:00 PM - 10:00 PM',
-        'Friday': '7:30 PM - 9:30 PM', 
-        'Sunday': '2:30 PM - 4:30 PM'
+        'Friday': '7:45 PM - 9:45 PM',
+        'Sunday': '12:00 PM - 2:00 PM'
       }
     });
     
