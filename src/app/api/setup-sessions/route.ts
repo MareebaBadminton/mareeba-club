@@ -28,14 +28,6 @@ export async function POST(request: NextRequest) {
         end_time: '14:00',
         max_players: 20,
         fee: 8
-      },
-      {
-        id: 'monday-evening',
-        day_of_week: 'Monday',
-        start_time: '20:00',
-        end_time: '22:00',
-        max_players: 20,
-        fee: 8
       }
     ];
     
@@ -69,7 +61,6 @@ export async function POST(request: NextRequest) {
       message: `Successfully created ${data.length} sessions`,
       sessions: data,
       schedule: {
-        'Monday': '8:00 PM - 10:00 PM',
         'Friday': '7:45 PM - 9:45 PM',
         'Sunday': '12:00 PM - 2:00 PM'
       }
