@@ -158,7 +158,7 @@ export async function createBooking(
       )
       
       if (activeBookings.length >= session.maxPlayers) {
-        return { success: false, error: 'This session is full. No additional bookings can be made.' }
+        return { success: false, error: 'Sorry, this session is full. Please book a spot in our next session!' }
       }
     }
 
