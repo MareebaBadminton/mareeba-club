@@ -34,9 +34,10 @@ export default function NextSessionPlayers() {
       const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
       console.log('DEBUG dayOfWeek we look for:', dayOfWeek);
 
-      // Match irrespective of capitalisation / casing
+      // Match irrespective of capitalisation / casing, but exclude Monday sessions
       const session = sessions.find(
-        s => s.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase()
+        s => s.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase() &&
+             s.dayOfWeek?.toLowerCase() !== 'monday'
       )
       console.log('DEBUG matched session:', session);
 

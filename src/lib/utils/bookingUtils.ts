@@ -139,7 +139,30 @@ export async function createBooking(
       return { success: false, error: 'You already have a booking for this session' }
     }
 
-    // 2. Determine legacy-friendly ID (playerId_date_sequence)
+    // 2. Check if the session is already full (count both pending and confirmed bookings)
+    const allBookings = await getAllBookings()
+    const sessions = await getAllSessions()
+    const targetDate = new Date(sessionDate)
+    const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
+    const session = sessions.find(s => s.dayOfWeek === dayOfWeek)
+    
+    if (session) {
+      // sessionTime parameter can be either full range "19:30-21:30" or just startTime "19:30"
+      const activeBookings = allBookings.filter(
+        (b) => b.sessionDate === sessionDate && 
+               b.status !== 'cancelled' &&
+               b.sessionTime &&
+               (b.sessionTime === sessionTime || 
+                b.sessionTime === session.startTime ||
+                b.sessionTime === `${session.startTime}-${session.endTime}`)
+      )
+      
+      if (activeBookings.length >= session.maxPlayers) {
+        return { success: false, error: 'This session is full. No additional bookings can be made.' }
+      }
+    }
+
+    // 3. Determine legacy-friendly ID (playerId_date_sequence)
     let sequence = 1
     try {
       const { count } = await supabase
@@ -155,7 +178,7 @@ export async function createBooking(
 
     const legacyId = `${playerId}_${sessionDate}_${sequence}`
 
-    // 3. Create the booking in Supabase (explicit ID to keep legacy pattern)
+    // 4. Create the booking in Supabase (explicit ID to keep legacy pattern)
     const newBookingData = {
       id: legacyId,
       player_id: playerId,
@@ -188,7 +211,7 @@ export async function createBooking(
       createdAt: booking.created_at,
     }
 
-    // 4. Create a corresponding payment record
+    // 5. Create a corresponding payment record
     const paymentReference = `${playerId}`
     await createPayment({
       bookingId: newBooking.id,
@@ -237,16 +260,16 @@ export async function getAvailableSessions(date: string): Promise<(Session & { a
     
     const availableSessions = sessions.filter(s => s.dayOfWeek === dayOfWeek)
     
-    // Get existing CONFIRMED bookings for this date (don't count pending bookings)
-    const confirmedBookings = allBookings.filter(
-      (b) => b.sessionDate === date && b.status === 'confirmed'
+    // Get existing bookings for this date (count both pending and confirmed, exclude cancelled)
+    const activeBookings = allBookings.filter(
+      (b) => b.sessionDate === date && b.status !== 'cancelled'
     )
     
     // Calculate remaining spots for each session
     const sessionsWithAvailability: (Session & { availableSpots: number })[] = availableSessions.map(
       (session) => {
         const fullRange = `${session.startTime}-${session.endTime}`
-        const bookingCount = confirmedBookings.filter((b) => {
+        const bookingCount = activeBookings.filter((b) => {
           if (!b.sessionTime) return false
           return b.sessionTime === fullRange || b.sessionTime === session.startTime
         }).length
@@ -335,9 +358,14 @@ export async function getNextSessionDate(): Promise<string | null> {
 
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
-  // Build a quick lookup of valid day names (lower-case)
+  // Filter out Monday sessions - only show Sunday and Friday sessions
+  const allowedSessions = sessions.filter(
+    s => s.dayOfWeek?.trim().toLowerCase() !== 'monday'
+  )
+
+  // Build a quick lookup of valid day names (lower-case), excluding Monday
   const validDays = new Set(
-    sessions.map(s => s.dayOfWeek.trim().toLowerCase())
+    allowedSessions.map(s => s.dayOfWeek.trim().toLowerCase())
   )
 
   if (validDays.size === 0) return null
