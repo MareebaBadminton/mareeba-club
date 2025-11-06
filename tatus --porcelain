@@ -1,0 +1,86 @@
+[1mdiff --git a/src/components/UnavailableDatesPopup.tsx b/src/components/UnavailableDatesPopup.tsx[m
+[1mindex 92652ed..51118e1 100644[m
+[1m--- a/src/components/UnavailableDatesPopup.tsx[m
+[1m+++ b/src/components/UnavailableDatesPopup.tsx[m
+[36m@@ -4,31 +4,14 @@[m [mimport { useState, useEffect } from 'react'[m
+ [m
+ interface UnavailableDatesPopupProps {[m
+   isVisible: boolean[m
+[31m-  onClose: () => void[m
+[32m+[m[32m  onCloseAction: () => void[m
+ }[m
+ [m
+[31m-export default function UnavailableDatesPopup({ isVisible, onClose }: UnavailableDatesPopupProps) {[m
+[31m-  // Define all unavailable dates[m
+[31m-  const unavailableDates = [[m
+[31m-    { date: '2025-07-06', display: 'July 6th (SUN)' },[m
+[31m-    { date: '2025-07-07', display: 'July 7th (MON)' },[m
+[31m-    { date: '2025-07-11', display: 'July 11th (FRI)' },[m
+[31m-    { date: '2025-07-13', display: 'July 13th (SUN)' },[m
+[31m-    { date: '2025-07-18', display: 'July 18th (FRI)' }[m
+[31m-  ][m
+[31m-[m
+[31m-  // Filter out dates that have already passed[m
+[31m-  const getUpcomingDates = () => {[m
+[31m-    const today = new Date()[m
+[31m-    const todayString = today.toISOString().split('T')[0] // Get YYYY-MM-DD format[m
+[31m-    [m
+[31m-    return unavailableDates.filter(item => item.date >= todayString)[m
+[31m-  }[m
+[31m-[m
+[31m-  const upcomingDates = getUpcomingDates()[m
+[31m-[m
+[31m-  // Hide popup if no upcoming unavailable dates or not visible[m
+[31m-  if (!isVisible || upcomingDates.length === 0) return null[m
+[32m+[m[32mexport default function UnavailableDatesPopup({ isVisible, onCloseAction }: UnavailableDatesPopupProps) {[m
+[32m+[m[32m  // Hide popup if not visible or after 28th September 2024[m
+[32m+[m[32m  const cutoffDate = new Date('2024-09-28')[m
+[32m+[m[32m  const today = new Date()[m
+[32m+[m[32m  if (!isVisible || today > cutoffDate) return null[m
+ [m
+   return ([m
+     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">[m
+[36m@@ -38,7 +21,7 @@[m [mexport default function UnavailableDatesPopup({ isVisible, onClose }: Unavailabl[m
+           <div className="relative mb-4">[m
+             <h2 className="text-xl font-bold text-red-600 text-center">IMPORTANT NOTIFICATION</h2>[m
+             <button[m
+[31m-              onClick={onClose}[m
+[32m+[m[32m              onClick={onCloseAction}[m
+               className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"[m
+               aria-label="Close notification"[m
+             >[m
+[36m@@ -48,25 +31,21 @@[m [mexport default function UnavailableDatesPopup({ isVisible, onClose }: Unavailabl[m
+           [m
+           {/* Content */}[m
+           <div className="text-gray-800">[m
+[31m-            <p className="font-semibold mb-4">[m
+[31m-              No badminton sessions on {upcomingDates.length === 1 ? 'this date' : 'these dates'}:[m
+[32m+[m[32m            <p className="font-semibold mb-4 text-center">[m
+[32m+[m[32m              Our Monday sessions have been cancelled, and Sunday sessions are now scheduled from 12 PM to 2 PM.[m
+[32m+[m[32m            </p>[m
+[32m+[m[32m            <p className="mb-4 text-center">[m
+[32m+[m[32m              We apologise for any inconvenience and appreciate your understanding.[m
+[32m+[m[32m            </p>[m
+[32m+[m[32m            <p className="text-center font-medium text-gray-700">[m
+[32m+[m[32m              We’d love to hear your feedback, so please feel free to share your thoughts with us.[m
+             </p>[m
+[31m-            [m
+[31m-            <div className="space-y-2 mb-6">[m
+[31m-              {upcomingDates.map((item, index) => ([m
+[31m-                <div key={item.date}>[m
+[31m-                  <span>{index + 1}. {item.display}</span>[m
+[31m-                </div>[m
+[31m-              ))}[m
+[31m-            </div>[m
+[31m-            [m
+[31m-            <p className="text-center font-medium text-gray-700">Thank you for your understanding.</p>[m
+           </div>[m
+           [m
+           {/* Close Button */}[m
+           <div className="mt-6 flex justify-center">[m
+             <button[m
+[31m-              onClick={onClose}[m
+[32m+[m[32m              onClick={onCloseAction}[m
+               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"[m
+             >[m
+               Got it[m

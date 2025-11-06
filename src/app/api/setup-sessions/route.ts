@@ -33,14 +33,28 @@ export async function POST(request: NextRequest) {
     
     console.log('Inserting sessions:', JSON.stringify(defaultSessions, null, 2));
     
-    // Clear existing sessions first (in case of duplicates)
-    const { error: deleteError } = await supabaseAdmin
+    // Clear ALL existing sessions first to ensure no orphaned sessions remain
+    // This is important when sessions are removed from defaultSessions (e.g., Monday session)
+    // First, fetch all existing session IDs
+    const { data: existingSessions, error: fetchError } = await supabaseAdmin
       .from('sessions')
-      .delete()
-      .in('id', defaultSessions.map(s => s.id));
+      .select('id');
     
-    if (deleteError) {
-      console.log('Note: No existing sessions to delete (this is normal)', deleteError.message);
+    if (fetchError) {
+      console.log('Note: Could not fetch existing sessions (this is normal if table is empty)', fetchError.message);
+    } else if (existingSessions && existingSessions.length > 0) {
+      // Delete all existing sessions by their IDs
+      const existingIds = existingSessions.map(s => s.id);
+      const { error: deleteError } = await supabaseAdmin
+        .from('sessions')
+        .delete()
+        .in('id', existingIds);
+      
+      if (deleteError) {
+        console.log('Warning: Error deleting existing sessions', deleteError.message);
+      } else {
+        console.log(`✅ Cleared ${existingIds.length} existing session(s)`);
+      }
     }
     
     // Insert the sessions using admin client

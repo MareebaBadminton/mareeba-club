@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 
 // Add this import at the top of the file
@@ -9,11 +9,9 @@ import NextSessionPlayers from '@/components/NextSessionPlayers'
 import BookingForm from '@/components/BookingForm'
 import BookingLookup from '@/components/BookingLookup'
 import FindPlayerID from '@/components/FindPlayerID'
-import UnavailableDatesPopup from '@/components/UnavailableDatesPopup'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home')
-  const [showUnavailableDatesPopup, setShowUnavailableDatesPopup] = useState(false)
 
   const tabs = [
     { id: 'home', label: 'Home' },
@@ -23,13 +21,6 @@ export default function Home() {
     { id: 'next-session', label: 'Next Session' },
     { id: 'find-id', label: 'Find your ID' }
   ]
-
-  // Show popup when user visits Home or Book Session tabs
-  useEffect(() => {
-    if (activeTab === 'home' || activeTab === 'book') {
-      setShowUnavailableDatesPopup(true)
-    }
-  }, [activeTab])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -273,12 +264,6 @@ export default function Home() {
           <p className="text-sm sm:text-base">© 2024 Mareeba Badminton Club. All rights reserved.</p>
         </div>
       </footer>
-
-      {/* Unavailable Dates Popup */}
-      <UnavailableDatesPopup
-        isVisible={showUnavailableDatesPopup}
-        onCloseAction={() => setShowUnavailableDatesPopup(false)}
-      />
     </div>
   )
 }
