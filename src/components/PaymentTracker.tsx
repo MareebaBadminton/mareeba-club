@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getAllBookings, updateBookingPaymentStatus, findBookingByReference, cancelBooking } from '../lib/utils/bookingUtils';
-import { Booking } from '../lib/types/player';
+import { Booking, Player } from '../lib/types/player';
 import { getAllPayments, updatePaymentStatus, createPayment, getPaymentStats, Payment } from '@/lib/utils/paymentUtils'
+import { getAllPlayers } from '@/lib/utils/playerUtils'
 
 export default function PaymentTracker() {
   const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [playerMap, setPlayerMap] = useState<Map<string, Player>>(new Map());
   const [paymentStats, setPaymentStats] = useState({
     totalPayments: 0,
     totalAmount: 0,
@@ -34,12 +36,20 @@ export default function PaymentTracker() {
 
   const loadData = async () => {
     try {
-      // Step 1: Fetch all bookings, payments, and stats in parallel
-      let [bookings, allPayments, stats] = await Promise.all([
+      // Step 1: Fetch all bookings, payments, stats, and players in parallel
+      let [bookings, allPayments, stats, players] = await Promise.all([
         getAllBookings(),
         getAllPayments(),
-        getPaymentStats()
+        getPaymentStats(),
+        getAllPlayers()
       ]);
+
+      // Step 1a: Create a map of playerId -> Player for quick lookup
+      const playerLookup = new Map<string, Player>();
+      players.forEach(player => {
+        playerLookup.set(player.id, player);
+      });
+      setPlayerMap(playerLookup);
 
       // Step 2: Identify bookings that have been pending & unpaid for > 48 hours
       const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
@@ -137,9 +147,11 @@ export default function PaymentTracker() {
 
       // Legacy Google Sheets sync removed.
       
+      const player = playerMap.get(booking.playerId);
+      const playerName = player ? `${player.firstName} ${player.lastName}` : `Player ID: ${booking.playerId}`;
       setMessage({ 
         type: 'success', 
-        text: `Payment confirmed successfully for Player ID: ${booking.playerId}` 
+        text: `Payment confirmed successfully for ${playerName}` 
       });
       
       // Reload data to refresh the display
@@ -302,10 +314,14 @@ export default function PaymentTracker() {
             </button>
           </div>
           
-          {searchResult && (
+              {searchResult && (
             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
               <p><strong>Found Booking:</strong></p>
-              <p>Player ID: {searchResult.playerId}</p>
+              <p><strong>Player:</strong> {
+                playerMap.get(searchResult.playerId) 
+                  ? `${playerMap.get(searchResult.playerId)!.firstName} ${playerMap.get(searchResult.playerId)!.lastName}`
+                  : 'Name not found'
+              } <span className="text-gray-500 text-sm">(ID: {searchResult.playerId})</span></p>
               <p>Session: {searchResult.sessionDate} at {searchResult.sessionTime}</p>
               <button
                 onClick={() => confirmPayment(searchResult.id, searchReference)}
@@ -342,13 +358,14 @@ export default function PaymentTracker() {
                 <div key={booking.id} className="border rounded-lg p-4 bg-white shadow">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p><strong>Player ID:</strong> {booking.playerId}</p>
+                      <p><strong>Player:</strong> {
+                        playerMap.get(booking.playerId) 
+                          ? `${playerMap.get(booking.playerId)!.firstName} ${playerMap.get(booking.playerId)!.lastName}`
+                          : 'Name not found'
+                      } <span className="text-gray-500 text-sm">(ID: {booking.playerId})</span></p>
                       <p><strong>Session:</strong> {booking.sessionDate} at {booking.sessionTime}</p>
                       <p className="text-sm text-gray-600">
                         <strong>Reference:</strong> {booking.playerId}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <strong>Amount:</strong> {formatCurrency(8.00)}
                       </p>
                     </div>
                     <button
@@ -387,18 +404,21 @@ export default function PaymentTracker() {
               <table className="min-w-full bg-white border border-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player ID</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {payments.map((payment) => (
+                  {payments.map((payment) => {
+                    const player = playerMap.get(payment.playerId);
+                    return (
                     <tr key={payment.id}>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{payment.playerId}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{formatCurrency(payment.amount)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        {player ? `${player.firstName} ${player.lastName}` : 'Name not found'}
+                        <span className="text-gray-500 text-xs block">ID: {payment.playerId}</span>
+                      </td>
                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{payment.paymentReference || 'N/A'}</td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -414,7 +434,8 @@ export default function PaymentTracker() {
                         {payment.paymentDate ? formatDate(payment.paymentDate) : formatDate(payment.createdAt)}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

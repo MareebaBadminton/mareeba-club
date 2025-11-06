@@ -79,15 +79,25 @@ export default function Home() {
             <div>
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Welcome to Mareeba Badminton Club</h2>
               
-              {/* Facility Photo */}
-              <div className="mb-6 sm:mb-8">
+              {/* Video Background */}
+              <div className="mb-6 sm:mb-8 relative w-full h-64 sm:h-80 rounded-lg shadow-lg overflow-hidden">
+                {/* Fallback image (hidden when video loads) */}
                 <Image
                   src="/court-photo.jpg.jpg"
                   alt="Mareeba Badminton Club Facility"
-                  width={800}
-                  height={400}
-                  className="w-full h-64 sm:h-80 object-cover rounded-lg shadow-lg"
+                  fill
+                  className="object-cover"
+                  priority
                 />
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover z-10"
+                >
+                  <source src="/video.mp4" type="video/mp4" />
+                </video>
               </div>
               
               {/* Updated intro & fee information */}
@@ -217,7 +227,7 @@ export default function Home() {
           {activeTab === 'register' && (
             <div>
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Player Registration</h2>
-              <RegisterForm />
+              <RegisterForm onNavigateToBooking={() => setActiveTab('book')} />
             </div>
           )}
 
@@ -267,7 +277,7 @@ export default function Home() {
       {/* Unavailable Dates Popup */}
       <UnavailableDatesPopup
         isVisible={showUnavailableDatesPopup}
-        onClose={() => setShowUnavailableDatesPopup(false)}
+        onCloseAction={() => setShowUnavailableDatesPopup(false)}
       />
     </div>
   )

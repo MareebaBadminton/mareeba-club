@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { createPlayer, getPlayerSyncStatus, syncPlayerToSheets } from '@/lib/utils/playerUtils'
+import RegistrationReminderModal from './RegistrationReminderModal'
 
-export default function RegisterForm() {
+interface RegisterFormProps {
+  onNavigateToBooking?: () => void
+}
+
+export default function RegisterForm({ onNavigateToBooking }: RegisterFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [registeredPlayer, setRegisteredPlayer] = useState<{ id: string; firstName: string; syncStatus?: string } | null>(null)
+  const [showReminderModal, setShowReminderModal] = useState(false)
   const [error, setError] = useState<string>('')
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -41,11 +47,15 @@ export default function RegisterForm() {
         ? 'Registration complete and synced!' 
         : 'Registration complete. Sync in progress...'
       
+      // Store player data temporarily
       setRegisteredPlayer({
         id: newPlayer.id,
         firstName: newPlayer.firstName,
         syncStatus: syncMessage
       })
+      
+      // Show reminder modal first
+      setShowReminderModal(true)
       
       // Reset form
       form.reset()
@@ -61,34 +71,62 @@ export default function RegisterForm() {
     }
   }
 
-  if (registeredPlayer) {
+  const handleProceedFromModal = () => {
+    setShowReminderModal(false)
+  }
+
+  // Show success message only after user proceeds through modal
+  if (registeredPlayer && !showReminderModal) {
     return (
-      <div className="p-4 sm:p-6 bg-green-50 border border-green-200 rounded-md">
-        <h3 className="text-lg sm:text-xl font-semibold text-green-800 mb-2">Registration Successful!</h3>
-        <p className="mb-4 text-sm sm:text-base">Thank you for registering, {registeredPlayer.firstName}!</p>
-        <div className="bg-white p-3 sm:p-4 rounded-md border border-green-300">
-          <p className="font-medium text-sm sm:text-base">Your Player ID:</p>
-          <p className="font-mono text-base sm:text-lg mt-1 break-all">{registeredPlayer.id}</p>
-          <p className="text-xs sm:text-sm mt-2 text-green-600">
-            {registeredPlayer.syncStatus}
-          </p>
-          <p className="text-xs sm:text-sm mt-2 text-blue-600">
-            💡 You can now use this ID to book sessions!
-          </p>
+      <>
+        <RegistrationReminderModal
+          isVisible={false}
+          onProceed={handleProceedFromModal}
+        />
+        <div className="p-4 sm:p-6 bg-green-50 border border-green-200 rounded-md">
+          <h3 className="text-lg sm:text-xl font-semibold text-green-800 mb-2">Registration Successful!</h3>
+          <p className="mb-4 text-sm sm:text-base">Thank you for registering, {registeredPlayer.firstName}!</p>
+          <div className="bg-white p-3 sm:p-4 rounded-md border border-green-300">
+            <p className="font-medium text-sm sm:text-base">Your Player ID:</p>
+            <p className="font-mono text-base sm:text-lg mt-1 break-all">{registeredPlayer.id}</p>
+            <p className="text-xs sm:text-sm mt-2 text-green-600">
+              {registeredPlayer.syncStatus}
+            </p>
+            <p className="text-xs sm:text-sm mt-2 text-blue-600">
+              💡 You can now use this ID to book sessions!
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            {onNavigateToBooking && (
+              <button
+                onClick={onNavigateToBooking}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base font-medium"
+              >
+                Go to Book Session →
+              </button>
+            )}
+            <button
+              onClick={() => setRegisteredPlayer(null)}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm sm:text-base"
+            >
+              Register Another Player
+            </button>
+          </div>
         </div>
-        
-        <button
-          onClick={() => setRegisteredPlayer(null)}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm sm:text-base"
-        >
-          Register Another Player
-        </button>
-      </div>
+      </>
     )
   }
 
   return (
-    <div>
+    <>
+      {/* Reminder Modal - shows after registration */}
+      <RegistrationReminderModal
+        isVisible={showReminderModal}
+        onProceed={handleProceedFromModal}
+      />
+      
+      <div>
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p className="text-red-800">{error}</p>
@@ -148,6 +186,7 @@ export default function RegisterForm() {
           {isSubmitting ? 'Registering...' : 'Register'}
         </button>
       </form>
-    </div>
+      </div>
+    </>
   )
 }
