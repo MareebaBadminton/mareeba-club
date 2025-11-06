@@ -71,7 +71,7 @@ export default function Home() {
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Welcome to Mareeba Badminton Club</h2>
               
               {/* Video Background */}
-              <div className="mb-6 sm:mb-8 relative w-full h-64 sm:h-80 rounded-lg shadow-lg overflow-hidden">
+              <div className="mb-6 sm:mb-8 relative w-full h-80 sm:h-96 lg:h-[28rem] rounded-lg shadow-lg overflow-hidden">
                 {/* Fallback image (hidden when video loads) */}
                 <Image
                   src="/court-photo.jpg.jpg"
