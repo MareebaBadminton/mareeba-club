@@ -270,7 +270,7 @@ export default function PaymentTracker() {
           <nav className="-mb-px flex space-x-8">
             {[
               { key: 'pending', label: 'Pending Payments', count: pendingBookings.length },
-              { key: 'all', label: 'All Payments', count: payments.length },
+              { key: 'all', label: 'All Payments', count: payments.filter(p => p.status === 'completed').length },
               { key: 'stats', label: 'Statistics', count: null }
             ].map((tab) => (
               <button
@@ -396,50 +396,57 @@ export default function PaymentTracker() {
 
       {activeTab === 'all' && (
         <div>
-          <h3 className="text-lg font-semibold mb-4">All Payments ({payments.length})</h3>
-          {payments.length === 0 ? (
-            <p className="text-gray-600">No payment records found</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {payments.map((payment) => {
-                    const player = playerMap.get(payment.playerId);
-                    return (
-                    <tr key={payment.id}>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                        {player ? `${player.firstName} ${player.lastName}` : 'Name not found'}
-                        <span className="text-gray-500 text-xs block">ID: {payment.playerId}</span>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{payment.paymentReference || 'N/A'}</td>
-                      <td className="px-4 py-2 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          payment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          payment.status === 'failed' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {payment.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                        {payment.paymentDate ? formatDate(payment.paymentDate) : formatDate(payment.createdAt)}
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {(() => {
+            const completedPayments = payments.filter(p => p.status === 'completed');
+            return (
+              <>
+                <h3 className="text-lg font-semibold mb-4">All Payments ({completedPayments.length})</h3>
+                {completedPayments.length === 0 ? (
+                  <p className="text-gray-600">No completed payment records found</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border border-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {completedPayments.map((payment) => {
+                          const player = playerMap.get(payment.playerId);
+                          return (
+                          <tr key={payment.id}>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {player ? `${player.firstName} ${player.lastName}` : 'Name not found'}
+                              <span className="text-gray-500 text-xs block">ID: {payment.playerId}</span>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{payment.paymentReference || 'N/A'}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                payment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                payment.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {payment.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                              {payment.paymentDate ? formatDate(payment.paymentDate) : formatDate(payment.createdAt)}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -447,18 +454,21 @@ export default function PaymentTracker() {
         <div>
           <h3 className="text-lg font-semibold mb-4">Payment Statistics</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold text-blue-800">Total Payments</h4>
-              <p className="text-2xl font-bold text-blue-600">{paymentStats.totalPayments}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold text-green-800">Total Amount</h4>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentStats.totalAmount)}</p>
-            </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="text-lg font-semibold text-green-800">Completed</h4>
               <p className="text-2xl font-bold text-green-600">{paymentStats.completedPayments}</p>
             </div>
+            {(() => {
+              const completedAmount = payments
+                .filter(p => p.status === 'completed')
+                .reduce((sum, payment) => sum + payment.amount, 0);
+              return (
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h4 className="text-lg font-semibold text-green-800">Completed Amount</h4>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(completedAmount)}</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

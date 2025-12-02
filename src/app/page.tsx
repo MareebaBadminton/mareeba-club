@@ -9,6 +9,7 @@ import NextSessionPlayers from '@/components/NextSessionPlayers'
 import BookingForm from '@/components/BookingForm'
 import BookingLookup from '@/components/BookingLookup'
 import FindPlayerID from '@/components/FindPlayerID'
+import ImageSlideshow from '@/components/ImageSlideshow'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home')
@@ -70,14 +71,15 @@ export default function Home() {
             <div>
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Welcome to Mareeba Badminton Club</h2>
               
-              {/* Court Photo */}
-              <div className="mb-6 sm:mb-8 relative w-full h-64 sm:h-80 lg:h-96 rounded-lg shadow-lg overflow-hidden">
-                <Image
-                  src="/court-photo.jpg.jpg"
+              {/* Image Slideshow */}
+              <div className="mb-6 sm:mb-8">
+                <ImageSlideshow
+                  images={[
+                    '/court-photo.jpg.jpg',
+                    '/photo2.jpg.jpeg',
+                  ]}
                   alt="Mareeba Badminton Club Facility"
-                  fill
-                  className="object-cover"
-                  priority
+                  interval={5000}
                 />
               </div>
               
