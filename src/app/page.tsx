@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 
 // Add this import at the top of the file
@@ -10,9 +10,24 @@ import BookingForm from '@/components/BookingForm'
 import BookingLookup from '@/components/BookingLookup'
 import FindPlayerID from '@/components/FindPlayerID'
 import ImageSlideshow from '@/components/ImageSlideshow'
+import AnnouncementPopup from '@/components/AnnouncementPopup'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home')
+  const [showAnnouncement, setShowAnnouncement] = useState(false)
+  
+  // Show popup on first visit (using localStorage to track)
+  useEffect(() => {
+    const hasSeenAnnouncement = localStorage.getItem('seen_christmas_2025_announcement')
+    if (!hasSeenAnnouncement) {
+      setShowAnnouncement(true)
+    }
+  }, [])
+  
+  const handleCloseAnnouncement = () => {
+    setShowAnnouncement(false)
+    localStorage.setItem('seen_christmas_2025_announcement', 'true')
+  }
 
   const tabs = [
     { id: 'home', label: 'Home' },
@@ -25,6 +40,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Announcement Popup */}
+      <AnnouncementPopup 
+        isVisible={showAnnouncement} 
+        onClose={handleCloseAnnouncement} 
+      />
+      
       {/* Header */}
       <div className="bg-blue-600">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
@@ -107,7 +128,7 @@ export default function Home() {
                   <p className="font-bold mb-1">📅 Session Times:</p>
                   <ul className="list-disc list-inside ml-4 space-y-1">
                     <li>Friday: 7:45PM – 9:45PM</li>
-                    <li>Sunday: 12:00PM – 2:00PM</li>
+                    <li>Sunday: 3:00PM – 5:00PM</li>
                   </ul>
                 </div>
 

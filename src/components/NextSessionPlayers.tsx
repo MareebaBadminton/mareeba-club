@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { getNextSessionDate, getAllSessions } from '@/lib/utils/bookingUtils'
-import type { Booking, Session, Player } from '@/lib/types/player'
+import type { Session } from '@/lib/types/player'
 
 export default function NextSessionPlayers() {
   const [nextSession, setNextSession] = useState<{
@@ -19,72 +17,27 @@ export default function NextSessionPlayers() {
       setLoading(true);
       setError(null);
 
-      const sessions = await getAllSessions();
-      console.log('DEBUG sessions:', sessions.map(s => s.dayOfWeek));
-      const nextDate = await getNextSessionDate();
-      console.log('DEBUG nextDate:', nextDate);
-
-      if (!nextDate) {
-        setError('No upcoming sessions found');
-        setLoading(false);
-        return;
+      // Use API route to get next session data
+      const response = await fetch('/api/bookings/next-session')
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to load next session')
       }
 
-      const targetDate = new Date(nextDate)
-      const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
-      console.log('DEBUG dayOfWeek we look for:', dayOfWeek);
-
-      // Match irrespective of capitalisation / casing, but exclude Monday sessions
-      const session = sessions.find(
-        s => s.dayOfWeek?.toLowerCase() === dayOfWeek.toLowerCase() &&
-             s.dayOfWeek?.toLowerCase() !== 'monday'
-      )
-      console.log('DEBUG matched session:', session);
-
-      if (!session) {
-        setError('No session configuration found for the next date');
-        setLoading(false);
-        return;
-      }
-
-      // Fetch *all* confirmed bookings for the target date, then match the times on the client so we
-      // catch both legacy records that stored only the start time (e.g. "19:30") and newer records
-      // that store the full range (e.g. "19:30-21:30").
-      const { data: bookings, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('player_id, session_time, players!inner(first_name,last_name)')
-        .eq('session_date', nextDate)
-        .eq('payment_confirmed', true)
-
-      if (bookingsError) {
-        throw bookingsError
-      }
-
-      // Accept session_time stored as just the startTime or the full range.
-      const relevantBookings = bookings.filter((b: any) => {
-        const t = b.session_time as string | null
-        if (!t) return false
-        return t === session.startTime || t === `${session.startTime}-${session.endTime}`
-      })
-
-      const players = relevantBookings.map((booking: any) => {
-        const player = booking.players
-        return player ? `${player.first_name} ${player.last_name}` : booking.player_id
-      })
-
-      const availableSpots = session.maxPlayers - players.length;
+      const data = await response.json()
 
       setNextSession({
-        date: nextDate,
-        players,
-        session,
-        availableSpots
+        date: data.date,
+        players: data.players,
+        session: data.session,
+        availableSpots: data.availableSpots
       })
       
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Error loading next session:', error)
-      setError('Error loading next session information')
+      setError(error instanceof Error ? error.message : 'Error loading next session information')
     } finally {
       setLoading(false)
     }
@@ -99,26 +52,9 @@ export default function NextSessionPlayers() {
       loadNextSession();
     }, 30000);
   
-    // Set up real-time subscription (keep as backup)
-    const channel = supabase
-      .channel('bookings-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bookings'
-        },
-        () => {
-          loadNextSession();
-        }
-      )
-      .subscribe();
-  
     // Cleanup function
     return () => {
       clearInterval(pollInterval);
-      supabase.removeChannel(channel);
     };
   }, []);
 

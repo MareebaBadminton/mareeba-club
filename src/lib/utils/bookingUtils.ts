@@ -2,118 +2,68 @@ import { getAustralianDateTime } from './dateUtils'
 import type { Booking, Session } from '../types/player'
 import { getData, setData } from './storage'
 import { v4 as uuidv4 } from 'uuid'
-import { supabase } from '../supabase'
-import { createPayment } from './paymentUtils' // Import createPayment
-// REMOVE THIS LINE: import { addBookingToSheet } from './googleSheets'
 
 // Cache variables for performance optimization
 const CACHE_DURATION = 5000 // 5 seconds
 let sessionsCache: { data: Session[]; timestamp: number } | null = null
 let bookingsCache: { data: Booking[]; timestamp: number } | null = null
 
-// Get all sessions from Supabase
+// Get all sessions from API route (proxies to Supabase)
 export async function getAllSessions(): Promise<Session[]> {
   try {
-    const { data: sessions, error } = await supabase
-      .from('sessions')
-      .select('*')
-      .order('day_of_week', { ascending: true })
-      .order('start_time', { ascending: true })
+    const response = await fetch('/api/sessions')
     
-    if (error) {
-      console.error('Error fetching sessions from Supabase:', error)
-      // Fallback to localStorage if Supabase fails
-      return getData('SESSIONS') as Session[]
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sessions: ${response.statusText}`)
     }
     
-    // Convert Supabase format to our Session interface
-    return sessions.map(session => ({
-      id: session.id,
-      dayOfWeek: (session.day_of_week || '').trim(),
-      startTime: session.start_time,
-      endTime: session.end_time,
-      maxPlayers: session.max_players,
-      fee: session.fee
-    }))
+    const { sessions } = await response.json()
+    return sessions || []
   } catch (error) {
-    console.error('Error connecting to Supabase:', error)
-    // Fallback to localStorage if connection fails
+    console.error('Error fetching sessions:', error)
+    // Fallback to localStorage if API fails
     return getData('SESSIONS') as Session[]
   }
 }
 
-// Get all bookings from Supabase
+// Get all bookings from API route (proxies to Supabase)
 export async function getAllBookings(): Promise<Booking[]> {
   try {
-    const { data: bookings, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('session_date', { ascending: true })
-      .order('session_time', { ascending: true })
+    const response = await fetch('/api/bookings')
     
-    if (error || !bookings || bookings.length === 0) {
-      if (error) {
-        console.error('Error fetching bookings from Supabase:', error)
-      }
-      // Fallback to localStorage only (legacy Google Sheets path removed)
-      return getData('BOOKINGS') as Booking[]
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bookings: ${response.statusText}`)
     }
     
-    // Convert Supabase format to our Booking interface
-    return bookings.map(booking => ({
-      id: booking.id,
-      playerId: booking.player_id,
-      sessionDate: booking.session_date,
-      sessionTime: booking.session_time,
-      status: booking.status,
-      paymentStatus: booking.payment_confirmed ? 'paid' : 'pending',
-      fee: 8, // Use session fee from sessions table or default
-      createdAt: booking.created_at
-    }))
+    const { bookings } = await response.json()
+    return bookings || []
   } catch (error) {
-    console.error('Error connecting to Supabase:', error)
-    // Fallback to localStorage if connection fails
+    console.error('Error fetching bookings:', error)
+    // Fallback to localStorage if API fails
     return getData('BOOKINGS') as Booking[]
   }
 }
 
-// Get bookings for a specific player from Supabase
+// Get bookings for a specific player from API route (proxies to Supabase)
 export async function getPlayerBookings(playerId: string): Promise<Booking[]> {
   try {
-    const { data: bookings, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('player_id', playerId)
-      .order('session_date', { ascending: true })
-      .order('session_time', { ascending: true })
+    const response = await fetch(`/api/bookings?playerId=${encodeURIComponent(playerId)}`)
     
-    if (error) {
-      console.error('Error fetching player bookings from Supabase:', error)
-      // Fallback to localStorage
-      const allBookings = getData('BOOKINGS') as Booking[]
-      return allBookings.filter(booking => booking.playerId === playerId)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch player bookings: ${response.statusText}`)
     }
     
-    // Convert Supabase format to our Booking interface
-    return bookings.map(booking => ({
-      id: booking.id,
-      playerId: booking.player_id,
-      sessionDate: booking.session_date,
-      sessionTime: booking.session_time,
-      status: booking.status,
-      paymentStatus: booking.payment_confirmed ? 'paid' : 'pending',
-      fee: 8,
-      createdAt: booking.created_at
-    }))
+    const { bookings } = await response.json()
+    return bookings || []
   } catch (error) {
-    console.error('Error connecting to Supabase:', error)
+    console.error('Error fetching player bookings:', error)
     // Fallback to localStorage
     const allBookings = getData('BOOKINGS') as Booking[]
     return allBookings.filter(booking => booking.playerId === playerId)
   }
 }
 
-// Create a new booking in Supabase, create a payment, and sync to Google Sheets
+// Create a new booking via API route (proxies to Supabase)
 export async function createBooking(
   playerId: string,
   sessionDate: string,
@@ -121,25 +71,7 @@ export async function createBooking(
   sessionFee: number
 ): Promise<{ success: boolean; booking?: Booking; error?: string }> {
   try {
-    // 1. Check for duplicate booking first
-    const { data: existingBookings, error: checkError } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('player_id', playerId)
-      .eq('session_date', sessionDate)
-      .eq('session_time', sessionTime)
-      .in('status', ['confirmed', 'pending'])
-
-    if (checkError) {
-      console.error('Error checking for existing booking:', checkError)
-      return { success: false, error: `Database error: ${checkError.message}` }
-    }
-
-    if (existingBookings && existingBookings.length > 0) {
-      return { success: false, error: 'You already have a booking for this session' }
-    }
-
-    // 2. Check if the session is already full (count both pending and confirmed bookings)
+    // Check if the session is already full (count both pending and confirmed bookings)
     const allBookings = await getAllBookings()
     const sessions = await getAllSessions()
     const targetDate = new Date(sessionDate)
@@ -162,69 +94,29 @@ export async function createBooking(
       }
     }
 
-    // 3. Determine legacy-friendly ID (playerId_date_sequence)
-    let sequence = 1
-    try {
-      const { count } = await supabase
-        .from('bookings')
-        .select('id', { count: 'exact', head: true })
-        .eq('session_date', sessionDate)
-        .eq('session_time', sessionTime)
-
-      sequence = (count || 0) + 1
-    } catch (seqErr) {
-      console.warn('Unable to compute booking sequence, defaulting to 1', seqErr)
-    }
-
-    const legacyId = `${playerId}_${sessionDate}_${sequence}`
-
-    // 4. Create the booking in Supabase (explicit ID to keep legacy pattern)
-    const newBookingData = {
-      id: legacyId,
-      player_id: playerId,
-      session_date: sessionDate,
-      session_time: sessionTime,
-      status: 'pending',
-      payment_confirmed: false,
-      fee: sessionFee,
-    }
-
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .insert([newBookingData])
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error creating booking in Supabase:', error)
-      return { success: false, error: `Failed to create booking: ${error.message}` }
-    }
-
-    const newBooking: Booking = {
-      id: booking.id,
-      playerId: booking.player_id,
-      sessionDate: booking.session_date,
-      sessionTime: booking.session_time,
-      status: booking.status,
-      paymentStatus: booking.payment_confirmed ? 'paid' : 'pending',
-      fee: booking.fee,
-      createdAt: booking.created_at,
-    }
-
-    // 5. Create a corresponding payment record
-    const paymentReference = `${playerId}`
-    await createPayment({
-      bookingId: newBooking.id,
-      playerId: newBooking.playerId,
-      amount: newBooking.fee,
-      paymentReference: paymentReference
+    // Create the booking via API route
+    const response = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        playerId,
+        sessionDate,
+        sessionTime,
+        sessionFee
+      })
     })
 
-    // Legacy Google Sheets sync removed.
+    const result = await response.json()
+
+    if (!response.ok || !result.success) {
+      return { success: false, error: result.error || 'Failed to create booking' }
+    }
 
     clearBookingCache() // Clear cache after successful booking
 
-    return { success: true, booking: newBooking }
+    return { success: true, booking: result.booking }
   } catch (error: any) {
     console.error('An unexpected error occurred during booking creation:', error)
     return { success: false, error: error.message || 'An unexpected error occurred' }
@@ -290,19 +182,23 @@ export async function getAvailableSessions(date: string): Promise<(Session & { a
   }
 }
 
-// Cancel booking in Supabase
+// Cancel booking via API route
 export async function cancelBooking(bookingId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('bookings')
-      .update({ 
-        status: 'cancelled',
-        updated_at: new Date().toISOString()
+    const response = await fetch('/api/bookings', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bookingId,
+        status: 'cancelled'
       })
-      .eq('id', bookingId)
+    })
     
-    if (error) {
-      console.error('Error cancelling booking in Supabase:', error)
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('Error cancelling booking:', errorData.error)
       return false
     }
     
@@ -314,9 +210,10 @@ export async function cancelBooking(bookingId: string): Promise<boolean> {
       setData('BOOKINGS', bookings)
     }
     
+    clearBookingCache()
     return true
   } catch (error) {
-    console.error('Error connecting to Supabase:', error)
+    console.error('Error cancelling booking:', error)
     return false
   }
 }
@@ -404,15 +301,28 @@ export async function findBookingByReference(reference: string): Promise<Booking
 }
 
 export async function updateBookingPaymentStatus(bookingId: string, paymentStatus: 'paid' | 'pending'): Promise<boolean> {
-  const { error } = await supabase
-    .from('bookings')
-    .update({ payment_confirmed: paymentStatus === 'paid', status: 'confirmed' })
-    .eq('id', bookingId);
+  try {
+    const response = await fetch('/api/bookings', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bookingId,
+        paymentStatus
+      })
+    })
 
-  if (error) {
-    console.error('Error updating booking payment status:', error);
-    return false;
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('Error updating booking payment status:', errorData.error)
+      return false
   }
-  clearBookingCache();
-  return true;
+
+    clearBookingCache()
+    return true
+  } catch (error) {
+    console.error('Error updating booking payment status:', error)
+    return false
+  }
 }

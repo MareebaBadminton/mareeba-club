@@ -71,12 +71,16 @@ export default function BookingForm() {
   const isDateUnavailable = (dateString: string) => {
     // June 15, 2025 is unavailable
     // July dates unavailable: 6th, 7th, 11th, 13th, 18th
+    // Christmas holiday dates: 26th Dec 2025, 28th Dec 2025, 2nd Jan 2026
     return dateString === '2025-06-15' || 
            dateString === '2025-07-06' || 
            dateString === '2025-07-07' || 
            dateString === '2025-07-11' || 
            dateString === '2025-07-13' || 
-           dateString === '2025-07-18';
+           dateString === '2025-07-18' ||
+           dateString === '2025-12-26' || 
+           dateString === '2025-12-28' || 
+           dateString === '2026-01-02';
   };
 
   const getUnavailableDateMessage = (dateString: string) => {
@@ -97,6 +101,15 @@ export default function BookingForm() {
     }
     if (dateString === '2025-07-18') {
       return 'No session on 18/7. Thank you for your understanding.';
+    }
+    if (dateString === '2025-12-26') {
+      return 'No session on 26/12 due to Christmas holiday. Thank you for your understanding.';
+    }
+    if (dateString === '2025-12-28') {
+      return 'No session on 28/12 due to Christmas holiday. Thank you for your understanding.';
+    }
+    if (dateString === '2026-01-02') {
+      return 'No session on 2/1 due to New Year holiday. Thank you for your understanding.';
     }
     return '';
   };
