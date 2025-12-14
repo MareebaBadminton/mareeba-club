@@ -80,6 +80,36 @@ CREATE POLICY "Allow public read access on payments" ON payments FOR SELECT USIN
 CREATE POLICY "Allow public insert on payments" ON payments FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update on payments" ON payments FOR UPDATE USING (true);
 
+-- Create unavailable_dates table (for holidays, closures, etc.)
+CREATE TABLE IF NOT EXISTS unavailable_dates (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  date DATE NOT NULL UNIQUE,
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for unavailable_dates
+ALTER TABLE unavailable_dates ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access on unavailable_dates
+CREATE POLICY "Allow public read access on unavailable_dates" ON unavailable_dates FOR SELECT USING (true);
+
+-- Index for faster date lookups
+CREATE INDEX IF NOT EXISTS idx_unavailable_dates_date ON unavailable_dates(date);
+
+-- Insert existing unavailable dates (migrate from hardcoded values)
+INSERT INTO unavailable_dates (date, reason) VALUES
+  ('2025-06-15', 'No session on 15/6. Thank you for your understanding.'),
+  ('2025-07-06', 'No session on 6/7. Thank you for your understanding.'),
+  ('2025-07-07', 'No session on 7/7. Thank you for your understanding.'),
+  ('2025-07-11', 'No session on 11/7. Thank you for your understanding.'),
+  ('2025-07-13', 'No session on 13/7. Thank you for your understanding.'),
+  ('2025-07-18', 'No session on 18/7. Thank you for your understanding.'),
+  ('2025-12-26', 'No session on 26/12 due to Christmas holiday. Thank you for your understanding.'),
+  ('2025-12-28', 'No session on 28/12 due to Christmas holiday. Thank you for your understanding.'),
+  ('2026-01-02', 'No session on 2/1 due to New Year holiday. Thank you for your understanding.')
+ON CONFLICT (date) DO NOTHING;
+
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

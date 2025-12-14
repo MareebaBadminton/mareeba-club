@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// Force dynamic rendering - never cache this route
+export const dynamic = 'force-dynamic'
+
 // POST /api/players – create a new player in Supabase
 export async function POST(request: Request) {
   try {

@@ -219,14 +219,7 @@ export async function createPlayer(playerData: Omit<Player, 'id' | 'registeredAt
     
     console.log('✅ Player registered successfully in Supabase:', newPlayer.id);
     
-    // STEP 2: Also save to localStorage for immediate local access
-    const localPlayers = getData('PLAYERS') as Player[];
-    localPlayers.push(newPlayer);
-    setData('PLAYERS', localPlayers);
-    
-    // STEP 3: Mark as synced since it went through Supabase
-    await updatePlayerSyncStatus(newPlayer.id, true);
-    
+    // Player saved to Supabase successfully
     return newPlayer;
     
   } catch (error) {
@@ -278,7 +271,7 @@ export async function syncPlayerToSheets(playerId: string): Promise<{ success: b
   }
 }
 
-// Update player
+// Update player - TODO: Currently only saves to localStorage, needs Supabase integration
 export async function updatePlayer(id: string, playerData: Partial<Omit<Player, 'id'>>): Promise<Player | null> {
   const players = await getAllPlayers();
   const index = players.findIndex(player => player.id === id);
@@ -290,78 +283,43 @@ export async function updatePlayer(id: string, playerData: Partial<Omit<Player, 
     ...playerData,
   };
   
+  // Note: This only saves locally - changes won't persist in Supabase
   setData('PLAYERS', players);
   return players[index];
 }
 
-// Delete player
+// Delete player - TODO: Currently only saves to localStorage, needs Supabase integration
 export async function deletePlayer(id: string): Promise<boolean> {
   const players = await getAllPlayers();
   const filteredPlayers = players.filter(player => player.id !== id);
   
   if (filteredPlayers.length === players.length) return false;
   
+  // Note: This only saves locally - changes won't persist in Supabase
   setData('PLAYERS', filteredPlayers);
   return true;
 }
 
-// Sync players from Supabase to local storage (UPDATED: was Google Sheets, now Supabase)
+// Legacy sync function (kept for compatibility - now just verifies Supabase connection)
 export async function syncPlayersFromGoogleSheets(): Promise<{ success: boolean; count: number; message: string }> {
-  if (typeof window === 'undefined') {
-    return { success: false, count: 0, message: 'Can only sync from client side' };
-  }
-
   try {
-    console.log('Syncing players from Supabase...');
+    console.log('Verifying Supabase connection...');
     
-    // Get all players from Supabase
+    // Verify we can fetch from Supabase
     const supabasePlayers = await getAllPlayers();
     
-    if (supabasePlayers.length === 0) {
-      return { 
-        success: true, 
-        count: 0, 
-        message: 'No players found in Supabase database' 
-      };
-    }
-    
-    // Get current local players
-    const localPlayers = getData('PLAYERS') as Player[];
-    
-    // Create a map of existing local players by ID for quick lookup
-    const localPlayerMap = new Map(localPlayers.map(p => [p.id, p]));
-    
-    // Merge players: keep local data but add missing players from Supabase
-    const mergedPlayers = [...localPlayers];
-    let addedCount = 0;
-    
-    for (const supabasePlayer of supabasePlayers) {
-      if (!localPlayerMap.has(supabasePlayer.id)) {
-        // Player exists in Supabase but not locally - add them
-        mergedPlayers.push(supabasePlayer);
-        addedCount++;
-        
-        // Mark as synced since they came from Supabase
-        await updatePlayerSyncStatus(supabasePlayer.id, true);
-      }
-    }
-    
-    // Save merged data to local storage
-    setData('PLAYERS', mergedPlayers);
-    
-    console.log(`Sync complete: Added ${addedCount} players from Supabase`);
     return { 
       success: true, 
-      count: addedCount, 
-      message: `Successfully synced ${addedCount} new players from Supabase database` 
+      count: supabasePlayers.length, 
+      message: `Connected to Supabase: ${supabasePlayers.length} players found` 
     };
     
   } catch (error) {
-    console.error('Error syncing players from Supabase:', error);
+    console.error('Error connecting to Supabase:', error);
     return { 
       success: false, 
       count: 0, 
-      message: `Failed to sync from Supabase: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      message: `Failed to connect to Supabase: ${error instanceof Error ? error.message : 'Unknown error'}` 
     };
   }
 }

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// Force dynamic rendering - never cache this route
+export const dynamic = 'force-dynamic'
+
 // GET /api/sessions – fetch all sessions from Supabase
 export async function GET() {
   try {

@@ -1,6 +1,36 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// ✅ Force dynamic rendering - never cache this route
+export const dynamic = 'force-dynamic'
+
+function getBrisbaneToday() {
+  const now = new Date()
+
+  const fmtDate = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Australia/Brisbane',
+  })
+
+  const fmtWeekday = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    timeZone: 'Australia/Brisbane',
+  })
+
+  // YYYY-MM-DD in Brisbane
+  const date = fmtDate.format(now)
+  // weekday in Brisbane (lowercase, e.g. "friday")
+  const weekday = fmtWeekday.format(now).toLowerCase()
+
+  // Anchor date for safe day-iteration (avoid parsing locale strings back into a Date)
+  const [y, m, d] = date.split('-').map(Number)
+  const utcAnchor = new Date(Date.UTC(y, m - 1, d))
+
+  return { date, weekday, utcAnchor, fmtDate, fmtWeekday }
+}
+
 // Fallback session config if Supabase is unavailable
 const FALLBACK_SESSIONS = [
   {
@@ -22,21 +52,19 @@ const FALLBACK_SESSIONS = [
 ]
 
 function getFallbackNextSession() {
-  const fmtWeekday = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    timeZone: 'Australia/Brisbane'
-  })
+  const { date: todayDate, weekday: todayWeekday, utcAnchor, fmtDate, fmtWeekday } = getBrisbaneToday()
 
-  const fmtDate = new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Australia/Brisbane'
-  })
+  // If today is a session day, keep showing it for the whole Brisbane day
+  const todaySession = FALLBACK_SESSIONS.find(
+    s => s.day_of_week.toLowerCase() === todayWeekday.toLowerCase()
+  )
+  if (todaySession) {
+    return { date: todayDate, session: todaySession }
+  }
 
-  for (let i = 0; i < 14; i++) {
-    const candidate = new Date()
-    candidate.setDate(candidate.getDate() + i)
+  // Otherwise find next upcoming session day
+  for (let i = 1; i < 14; i++) {
+    const candidate = new Date(utcAnchor.getTime() + i * 24 * 60 * 60 * 1000)
     const candidateDayName = fmtWeekday.format(candidate)
     const session = FALLBACK_SESSIONS.find(
       s => s.day_of_week.toLowerCase() === candidateDayName.toLowerCase()
@@ -79,31 +107,30 @@ export async function GET() {
     }
 
     // Find next session date
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     const validDays = new Set(
       allowedSessions.map(s => s.day_of_week.trim().toLowerCase())
     )
 
-    const fmtWeekday = new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      timeZone: 'Australia/Brisbane'
-    })
-
-    const fmtDate = new Intl.DateTimeFormat('en-CA', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      timeZone: 'Australia/Brisbane'
-    })
+    const { date: todayDate, weekday: todayWeekday, utcAnchor, fmtDate, fmtWeekday } = getBrisbaneToday()
 
     let nextDate: string | null = null
-    for (let i = 0; i < 14; i++) {
-      const candidate = new Date()
-      candidate.setDate(candidate.getDate() + i)
-      const candidateDayName = fmtWeekday.format(candidate).toLowerCase()
-      if (validDays.has(candidateDayName)) {
-        nextDate = fmtDate.format(candidate)
-        break
+    let nextDayName: string | null = null
+
+    // If today is a session day, keep showing it for the whole Brisbane day.
+    // Only switch to the next session once the Brisbane date rolls over.
+    if (validDays.has(todayWeekday)) {
+      nextDate = todayDate
+      nextDayName = todayWeekday
+    } else {
+      // Otherwise, find next upcoming session day (up to 14 days)
+      for (let i = 1; i < 14; i++) {
+        const candidate = new Date(utcAnchor.getTime() + i * 24 * 60 * 60 * 1000)
+        const candidateDayName = fmtWeekday.format(candidate).toLowerCase()
+        if (validDays.has(candidateDayName)) {
+          nextDate = fmtDate.format(candidate)
+          nextDayName = candidateDayName
+          break
+        }
       }
     }
 
@@ -115,10 +142,11 @@ export async function GET() {
     }
 
     // Find matching session
-    const targetDate = new Date(nextDate)
-    const dayOfWeek = targetDate.toLocaleDateString('en-US', { weekday: 'long' })
+    // IMPORTANT: Use the Brisbane-time weekday we already computed (nextDayName).
+    // Converting YYYY-MM-DD back into a JS Date and calling toLocaleDateString()
+    // without a timezone can shift the weekday on Vercel/UTC and cause "shows next day" bugs.
     const session = allowedSessions.find(
-      s => s.day_of_week?.trim().toLowerCase() === dayOfWeek.toLowerCase()
+      s => s.day_of_week?.trim().toLowerCase() === (nextDayName || '').toLowerCase()
     )
 
     if (!session) {
@@ -131,21 +159,21 @@ export async function GET() {
     // Fetch confirmed bookings for the target date
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select('player_id, session_time, players!inner(first_name, last_name)')
+      .select('player_id, session_time, players(first_name, last_name)')
       .eq('session_date', nextDate)
       .eq('payment_confirmed', true)
+      .eq('status', 'confirmed')
 
     if (bookingsError) {
       console.error('Error fetching bookings:', bookingsError)
       throw bookingsError
     }
 
-    // Filter bookings that match the session time
-    const relevantBookings = bookings.filter((b: any) => {
-      const t = b.session_time as string | null
-      if (!t) return false
-      return t === session.start_time || t === `${session.start_time}-${session.end_time}`
-    })
+    // ✅ FIX: do NOT time-filter.
+    // We already selected the correct next session date (Fri/Sun) and require confirmed+paid.
+    // In production we’ve seen that even tiny formatting differences (e.g. "19:45:00" vs "19:45")
+    // can cause confirmed bookings to disappear if we strict-compare session_time strings.
+    const relevantBookings = bookings
 
     const players = relevantBookings.map((booking: any) => {
       const player = booking.players

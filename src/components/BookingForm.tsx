@@ -20,10 +20,26 @@ export default function BookingForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [bankReference, setBankReference] = useState('')
   const [minDate, setMinDate] = useState('')
+  const [unavailableDates, setUnavailableDates] = useState<Record<string, string>>({})
 
   useEffect(() => {
     // Set minimum date to today in Australian timezone (GMT+10)
     setMinDate(getMinBookingDate());
+    
+    // Fetch unavailable dates from Supabase
+    const fetchUnavailableDates = async () => {
+      try {
+        const response = await fetch('/api/unavailable-dates');
+        const data = await response.json();
+        if (data.unavailableDates) {
+          setUnavailableDates(data.unavailableDates);
+        }
+      } catch (error) {
+        console.error('Error fetching unavailable dates:', error);
+      }
+    };
+    
+    fetchUnavailableDates();
     
     // Set default date to next available session - FIXED: Make it async
     const setDefaultDate = async () => {
@@ -67,51 +83,14 @@ export default function BookingForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerFound, selectedDate])
 
-  // Check if selected date is unavailable
+  // Check if selected date is unavailable (now uses Supabase data)
   const isDateUnavailable = (dateString: string) => {
-    // June 15, 2025 is unavailable
-    // July dates unavailable: 6th, 7th, 11th, 13th, 18th
-    // Christmas holiday dates: 26th Dec 2025, 28th Dec 2025, 2nd Jan 2026
-    return dateString === '2025-06-15' || 
-           dateString === '2025-07-06' || 
-           dateString === '2025-07-07' || 
-           dateString === '2025-07-11' || 
-           dateString === '2025-07-13' || 
-           dateString === '2025-07-18' ||
-           dateString === '2025-12-26' || 
-           dateString === '2025-12-28' || 
-           dateString === '2026-01-02';
+    return dateString in unavailableDates;
   };
 
+  // Get the reason message for an unavailable date
   const getUnavailableDateMessage = (dateString: string) => {
-    if (dateString === '2025-06-15') {
-      return 'No session on 15/6. Thank you for your understanding.';
-    }
-    if (dateString === '2025-07-06') {
-      return 'No session on 6/7. Thank you for your understanding.';
-    }
-    if (dateString === '2025-07-07') {
-      return 'No session on 7/7. Thank you for your understanding.';
-    }
-    if (dateString === '2025-07-11') {
-      return 'No session on 11/7. Thank you for your understanding.';
-    }
-    if (dateString === '2025-07-13') {
-      return 'No session on 13/7. Thank you for your understanding.';
-    }
-    if (dateString === '2025-07-18') {
-      return 'No session on 18/7. Thank you for your understanding.';
-    }
-    if (dateString === '2025-12-26') {
-      return 'No session on 26/12 due to Christmas holiday. Thank you for your understanding.';
-    }
-    if (dateString === '2025-12-28') {
-      return 'No session on 28/12 due to Christmas holiday. Thank you for your understanding.';
-    }
-    if (dateString === '2026-01-02') {
-      return 'No session on 2/1 due to New Year holiday. Thank you for your understanding.';
-    }
-    return '';
+    return unavailableDates[dateString] || 'This date is unavailable. Thank you for your understanding.';
   };
 
   const handlePlayerIdSubmit = async (e?: React.FormEvent) => {

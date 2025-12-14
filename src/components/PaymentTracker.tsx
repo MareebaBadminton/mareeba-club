@@ -23,9 +23,7 @@ export default function PaymentTracker() {
   const [processingPayments, setProcessingPayments] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'stats'>('pending');
-
-  // Admin password
-  const ADMIN_PASSWORD = 'MB4dm!nton';
+  const [loginLoading, setLoginLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -95,14 +93,36 @@ export default function PaymentTracker() {
     }
   };
 
-  const handleAdminLogin = () => {
-    if (adminPassword === ADMIN_PASSWORD) {
-      setIsAdmin(true);
-      setAdminPassword('');
-      setMessage({ type: 'success', text: 'Admin access granted successfully!' });
-    } else {
-      alert('Incorrect admin password');
-      setAdminPassword('');
+  const handleAdminLogin = async () => {
+    if (!adminPassword.trim()) {
+      alert('Please enter a password');
+      return;
+    }
+
+    setLoginLoading(true);
+    
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsAdmin(true);
+        setAdminPassword('');
+        setMessage({ type: 'success', text: 'Admin access granted successfully!' });
+      } else {
+        alert(data.error || 'Incorrect admin password');
+        setAdminPassword('');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Failed to login. Please try again.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -241,9 +261,14 @@ export default function PaymentTracker() {
             />
             <button
               onClick={handleAdminLogin}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              disabled={loginLoading}
+              className={`px-4 py-2 rounded ${
+                loginLoading 
+                  ? 'bg-blue-400 cursor-wait' 
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white`}
             >
-              Login as Admin
+              {loginLoading ? 'Logging in...' : 'Login as Admin'}
             </button>
           </div>
         </div>

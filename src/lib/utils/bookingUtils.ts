@@ -1,6 +1,5 @@
 import { getAustralianDateTime } from './dateUtils'
 import type { Booking, Session } from '../types/player'
-import { getData, setData } from './storage'
 import { v4 as uuidv4 } from 'uuid'
 
 // Cache variables for performance optimization
@@ -21,8 +20,8 @@ export async function getAllSessions(): Promise<Session[]> {
     return sessions || []
   } catch (error) {
     console.error('Error fetching sessions:', error)
-    // Fallback to localStorage if API fails
-    return getData('SESSIONS') as Session[]
+    // Don't use stale localStorage data - let the error propagate
+    throw new Error('Unable to load sessions. Please check your internet connection and try again.')
   }
 }
 
@@ -39,8 +38,8 @@ export async function getAllBookings(): Promise<Booking[]> {
     return bookings || []
   } catch (error) {
     console.error('Error fetching bookings:', error)
-    // Fallback to localStorage if API fails
-    return getData('BOOKINGS') as Booking[]
+    // Don't use stale localStorage data - let the error propagate
+    throw new Error('Unable to load bookings. Please check your internet connection and try again.')
   }
 }
 
@@ -57,9 +56,8 @@ export async function getPlayerBookings(playerId: string): Promise<Booking[]> {
     return bookings || []
   } catch (error) {
     console.error('Error fetching player bookings:', error)
-    // Fallback to localStorage
-    const allBookings = getData('BOOKINGS') as Booking[]
-    return allBookings.filter(booking => booking.playerId === playerId)
+    // Don't use stale localStorage data - let the error propagate
+    throw new Error('Unable to load your bookings. Please check your internet connection and try again.')
   }
 }
 
@@ -202,14 +200,6 @@ export async function cancelBooking(bookingId: string): Promise<boolean> {
       return false
     }
     
-    // Also update localStorage as backup
-    const bookings = getData('BOOKINGS') as Booking[]
-    const bookingIndex = bookings.findIndex(b => b.id === bookingId)
-    if (bookingIndex !== -1) {
-      bookings[bookingIndex].status = 'cancelled'
-      setData('BOOKINGS', bookings)
-    }
-    
     clearBookingCache()
     return true
   } catch (error) {
@@ -224,26 +214,23 @@ export function clearBookingCache() {
   bookingsCache = null
 }
 
-// Legacy sync functions (kept for compatibility but now use Supabase)
+// Legacy sync function (kept for compatibility - now just verifies Supabase connection)
 export async function syncBookingsFromGoogleSheets(): Promise<{ success: boolean; count: number; message: string }> {
   try {
-    // Now this function syncs from Supabase instead of Google Sheets
+    // Verify we can fetch from Supabase
     const supabaseBookings = await getAllBookings()
-    
-    // Update localStorage with Supabase data
-    setData('BOOKINGS', supabaseBookings)
     
     return {
       success: true,
       count: supabaseBookings.length,
-      message: `Synced ${supabaseBookings.length} bookings from Supabase`
+      message: `Connected to Supabase: ${supabaseBookings.length} bookings found`
     }
   } catch (error) {
-    console.error('Error syncing bookings from Supabase:', error)
+    console.error('Error connecting to Supabase:', error)
     return {
       success: false,
       count: 0,
-      message: 'Error syncing from Supabase'
+      message: 'Error connecting to Supabase'
     }
   }
 }
