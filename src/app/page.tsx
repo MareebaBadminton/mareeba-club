@@ -5,7 +5,6 @@ import Image from 'next/image'
 
 // Add this import at the top of the file
 import RegisterForm from '@/components/RegisterForm'
-import NextSessionPlayers from '@/components/NextSessionPlayers'
 import BookingForm from '@/components/BookingForm'
 import BookingLookup from '@/components/BookingLookup'
 import FindPlayerID from '@/components/FindPlayerID'
@@ -34,7 +33,6 @@ export default function Home() {
     { id: 'register', label: 'Register' },
     { id: 'book', label: 'Book Session' },
     { id: 'lookup', label: 'Find Booking' },
-    { id: 'next-session', label: 'Next Session' },
     { id: 'find-id', label: 'Find your ID' }
   ]
 
@@ -65,7 +63,7 @@ export default function Home() {
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-2 sm:px-6">
-          <nav className="grid grid-cols-6 gap-0">
+          <nav className="grid grid-cols-5 gap-0">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -191,10 +189,6 @@ export default function Home() {
                     </li>
                     <li className="flex items-start">
                       <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span className="text-sm sm:text-base">Check "Next Session" to see who's playing and confirm your booking</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
                       <span className="text-sm sm:text-base">Use "Find Booking" to check your booking status anytime</span>
                     </li>
                   </ul>
@@ -248,14 +242,6 @@ export default function Home() {
             <div>
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">View your past and upcoming bookings</h2>
               <BookingLookup />
-            </div>
-          )}
-
-          {/* Next Session Tab */}
-          {activeTab === 'next-session' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Next Session</h2>
-              <NextSessionPlayers />
             </div>
           )}
 

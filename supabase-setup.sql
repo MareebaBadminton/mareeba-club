@@ -111,15 +111,80 @@ INSERT INTO unavailable_dates (date, reason) VALUES
 ON CONFLICT (date) DO NOTHING;
 
 -- Create updated_at trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 -- Add updated_at triggers
 CREATE TRIGGER update_players_updated_at BEFORE UPDATE ON players FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Atomic booking function (prevents race conditions for seat availability)
+CREATE OR REPLACE FUNCTION public.book_session_atomic(_player_id text, _session_date date, _session_time text, _fee numeric)
+RETURNS bookings
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $function$
+declare
+    seats_taken  int;
+    max_players  int;
+    seq          int;
+    new_id       text;
+    new_booking  bookings;
+begin
+    ----------------------------------------------------------------
+    -- 1. What is this session's capacity?
+    ----------------------------------------------------------------
+    select s.max_players
+      into max_players
+      from sessions s
+     where (_session_time = s.start_time || '-' || s.end_time)
+     limit 1;
+
+    if max_players is null then
+        raise exception 'Session configuration not found';
+    end if;
+
+    ----------------------------------------------------------------
+    -- 2. How many seats are already taken?  (Lock rows while counting)
+    ----------------------------------------------------------------
+    select count(*)        -- includes pending + confirmed
+      into seats_taken
+      from bookings
+     where session_date = _session_date
+       and session_time = _session_time
+       and status in ('pending','confirmed')
+     for update;           -- makes the check + insert atomic
+
+    if seats_taken >= max_players then
+        raise exception 'Session is full (%/% seats)', seats_taken, max_players;
+    end if;
+
+    ----------------------------------------------------------------
+    -- 3. Make a legacy-style ID  (playerId_date_sequence)
+    ----------------------------------------------------------------
+    seq := seats_taken + 1;
+    new_id := _player_id || '_' || _session_date || '_' || seq;
+
+    ----------------------------------------------------------------
+    -- 4. Insert and return the booking row
+    ----------------------------------------------------------------
+    insert into bookings (id, player_id, session_date, session_time,
+                          status, payment_confirmed, fee)
+         values (new_id, _player_id, _session_date, _session_time,
+                 'pending', false, _fee)
+      returning * into new_booking;
+
+    return new_booking;
+end;
+$function$; 

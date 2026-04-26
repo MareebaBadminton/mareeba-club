@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getAllBookings, updateBookingPaymentStatus, findBookingByReference, cancelBooking } from '../lib/utils/bookingUtils';
 import { Booking, Player } from '../lib/types/player';
-import { getAllPayments, updatePaymentStatus, createPayment, getPaymentStats, Payment } from '@/lib/utils/paymentUtils'
+import { getAllPayments, updatePaymentStatus, createPayment, Payment } from '@/lib/utils/paymentUtils'
 import { getAllPlayers } from '@/lib/utils/playerUtils'
 
 export default function PaymentTracker() {
   const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [playerMap, setPlayerMap] = useState<Map<string, Player>>(new Map());
-  const [paymentStats, setPaymentStats] = useState({
-    totalPayments: 0,
-    totalAmount: 0,
-    pendingPayments: 0,
-    completedPayments: 0,
-    failedPayments: 0
-  });
+
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -22,7 +16,7 @@ export default function PaymentTracker() {
   const [searchResult, setSearchResult] = useState<Booking | null>(null);
   const [processingPayments, setProcessingPayments] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'stats'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [loginLoading, setLoginLoading] = useState(false);
 
   useEffect(() => {
@@ -35,10 +29,9 @@ export default function PaymentTracker() {
   const loadData = async () => {
     try {
       // Step 1: Fetch all bookings, payments, stats, and players in parallel
-      let [bookings, allPayments, stats, players] = await Promise.all([
+      let [bookings, allPayments, players] = await Promise.all([
         getAllBookings(),
         getAllPayments(),
-        getPaymentStats(),
         getAllPlayers()
       ]);
 
@@ -81,7 +74,6 @@ export default function PaymentTracker() {
       // Step 4: Update local state
       setPendingBookings(pending);
       setPayments(allPayments);
-      setPaymentStats(stats);
     } catch (error) {
       console.error('Error loading data:', error);
       setMessage({
@@ -100,7 +92,7 @@ export default function PaymentTracker() {
     }
 
     setLoginLoading(true);
-    
+
     try {
       const response = await fetch('/api/admin/login', {
         method: 'POST',
@@ -131,15 +123,15 @@ export default function PaymentTracker() {
       alert('Admin access required to confirm payments');
       return;
     }
-    
+
     setProcessingPayments(prev => new Set(prev).add(bookingId));
     setMessage(null);
-    
+
     try {
       // Get the booking details
       const bookings = await getAllBookings();
       const booking = bookings.find(b => b.id === bookingId);
-      
+
       if (!booking) {
         throw new Error('Booking not found');
       }
@@ -166,23 +158,23 @@ export default function PaymentTracker() {
       }
 
       // Legacy Google Sheets sync removed.
-      
+
       const player = playerMap.get(booking.playerId);
       const playerName = player ? `${player.firstName} ${player.lastName}` : `Player ID: ${booking.playerId}`;
-      setMessage({ 
-        type: 'success', 
-        text: `Payment confirmed successfully for ${playerName}` 
+      setMessage({
+        type: 'success',
+        text: `Payment confirmed successfully for ${playerName}`
       });
-      
+
       // Reload data to refresh the display
       await loadData();
-      
+
     } catch (error) {
       console.error('Error confirming payment:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setMessage({ 
-        type: 'error', 
-        text: `Failed to confirm payment: ${errorMessage}. Please try again.` 
+      setMessage({
+        type: 'error',
+        text: `Failed to confirm payment: ${errorMessage}. Please try again.`
       });
     } finally {
       setProcessingPayments(prev => {
@@ -198,7 +190,7 @@ export default function PaymentTracker() {
       alert('Please enter a payment reference');
       return;
     }
-    
+
     try {
       const booking = await findBookingByReference(searchReference.trim());
       if (booking) {
@@ -227,16 +219,15 @@ export default function PaymentTracker() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-6">Payment Management</h2>
-      
+
       {/* Message Display */}
       {message && (
-        <div className={`mb-4 p-3 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-800' 
+        <div className={`mb-4 p-3 rounded-lg ${message.type === 'success'
+            ? 'bg-green-50 border border-green-200 text-green-800'
             : 'bg-red-50 border border-red-200 text-red-800'
-        }`}>
+          }`}>
           <p>{message.text}</p>
-          <button 
+          <button
             onClick={() => setMessage(null)}
             className="mt-2 text-sm underline hover:no-underline"
           >
@@ -244,7 +235,7 @@ export default function PaymentTracker() {
           </button>
         </div>
       )}
-      
+
       {/* Admin Login Section */}
       {!isAdmin && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -262,11 +253,10 @@ export default function PaymentTracker() {
             <button
               onClick={handleAdminLogin}
               disabled={loginLoading}
-              className={`px-4 py-2 rounded ${
-                loginLoading 
-                  ? 'bg-blue-400 cursor-wait' 
+              className={`px-4 py-2 rounded ${loginLoading
+                  ? 'bg-blue-400 cursor-wait'
                   : 'bg-blue-600 hover:bg-blue-700'
-              } text-white`}
+                } text-white`}
             >
               {loginLoading ? 'Logging in...' : 'Login as Admin'}
             </button>
@@ -295,17 +285,15 @@ export default function PaymentTracker() {
           <nav className="-mb-px flex space-x-8">
             {[
               { key: 'pending', label: 'Pending Payments', count: pendingBookings.length },
-              { key: 'all', label: 'All Payments', count: payments.filter(p => p.status === 'completed').length },
-              { key: 'stats', label: 'Statistics', count: null }
+              { key: 'all', label: 'All Payments', count: payments.filter(p => p.status === 'completed').length }
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.key
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 {tab.label}
                 {tab.count !== null && (
@@ -338,12 +326,12 @@ export default function PaymentTracker() {
               Search
             </button>
           </div>
-          
-              {searchResult && (
+
+          {searchResult && (
             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
               <p><strong>Found Booking:</strong></p>
               <p><strong>Player:</strong> {
-                playerMap.get(searchResult.playerId) 
+                playerMap.get(searchResult.playerId)
                   ? `${playerMap.get(searchResult.playerId)!.firstName} ${playerMap.get(searchResult.playerId)!.lastName}`
                   : 'Name not found'
               } <span className="text-gray-500 text-sm">(ID: {searchResult.playerId})</span></p>
@@ -351,26 +339,25 @@ export default function PaymentTracker() {
               <button
                 onClick={() => confirmPayment(searchResult.id, searchReference)}
                 disabled={!isAdmin || processingPayments.has(searchResult.id)}
-                className={`mt-2 px-3 py-1 rounded ${
-                  !isAdmin 
+                className={`mt-2 px-3 py-1 rounded ${!isAdmin
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : processingPayments.has(searchResult.id)
-                    ? 'bg-yellow-500 text-white cursor-wait'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
+                      ? 'bg-yellow-500 text-white cursor-wait'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
               >
-                {!isAdmin 
-                  ? 'Admin Access Required' 
+                {!isAdmin
+                  ? 'Admin Access Required'
                   : processingPayments.has(searchResult.id)
-                  ? 'Processing...'
-                  : 'Confirm This Payment'
+                    ? 'Processing...'
+                    : 'Confirm This Payment'
                 }
               </button>
             </div>
           )}
         </div>
       )}
-      
+
       {/* Content based on active tab */}
       {activeTab === 'pending' && (
         <div>
@@ -384,7 +371,7 @@ export default function PaymentTracker() {
                   <div className="flex justify-between items-center">
                     <div>
                       <p><strong>Player:</strong> {
-                        playerMap.get(booking.playerId) 
+                        playerMap.get(booking.playerId)
                           ? `${playerMap.get(booking.playerId)!.firstName} ${playerMap.get(booking.playerId)!.lastName}`
                           : 'Name not found'
                       } <span className="text-gray-500 text-sm">(ID: {booking.playerId})</span></p>
@@ -396,19 +383,18 @@ export default function PaymentTracker() {
                     <button
                       onClick={() => confirmPayment(booking.id)}
                       disabled={!isAdmin || processingPayments.has(booking.id)}
-                      className={`px-4 py-2 rounded ${
-                        !isAdmin 
+                      className={`px-4 py-2 rounded ${!isAdmin
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : processingPayments.has(booking.id)
-                          ? 'bg-yellow-500 text-white cursor-wait'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      }`}
+                            ? 'bg-yellow-500 text-white cursor-wait'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
                     >
-                      {!isAdmin 
+                      {!isAdmin
                         ? 'Admin Access Required'
                         : processingPayments.has(booking.id)
-                        ? 'Processing...'
-                        : 'Confirm Payment'
+                          ? 'Processing...'
+                          : 'Confirm Payment'
                       }
                     </button>
                   </div>
@@ -443,26 +429,25 @@ export default function PaymentTracker() {
                         {completedPayments.map((payment) => {
                           const player = playerMap.get(payment.playerId);
                           return (
-                          <tr key={payment.id}>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {player ? `${player.firstName} ${player.lastName}` : 'Name not found'}
-                              <span className="text-gray-500 text-xs block">ID: {payment.playerId}</span>
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{payment.paymentReference || 'N/A'}</td>
-                            <td className="px-4 py-2 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                payment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                payment.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {payment.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {payment.paymentDate ? formatDate(payment.paymentDate) : formatDate(payment.createdAt)}
-                            </td>
-                          </tr>
+                            <tr key={payment.id}>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                                {player ? `${player.firstName} ${player.lastName}` : 'Name not found'}
+                                <span className="text-gray-500 text-xs block">ID: {payment.playerId}</span>
+                              </td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{payment.paymentReference || 'N/A'}</td>
+                              <td className="px-4 py-2 whitespace-nowrap">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${payment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                      payment.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                        'bg-gray-100 text-gray-800'
+                                  }`}>
+                                  {payment.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                                {payment.paymentDate ? formatDate(payment.paymentDate) : formatDate(payment.createdAt)}
+                              </td>
+                            </tr>
                           );
                         })}
                       </tbody>
@@ -475,28 +460,7 @@ export default function PaymentTracker() {
         </div>
       )}
 
-      {activeTab === 'stats' && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4">Payment Statistics</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold text-green-800">Completed</h4>
-              <p className="text-2xl font-bold text-green-600">{paymentStats.completedPayments}</p>
-            </div>
-            {(() => {
-              const completedAmount = payments
-                .filter(p => p.status === 'completed')
-                .reduce((sum, payment) => sum + payment.amount, 0);
-              return (
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-green-800">Completed Amount</h4>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(completedAmount)}</p>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
