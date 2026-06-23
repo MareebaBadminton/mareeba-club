@@ -8,8 +8,8 @@ interface AnnouncementPopupProps {
 }
 
 export default function AnnouncementPopup({ isVisible, onClose }: AnnouncementPopupProps) {
-  // Auto-hide after January 3rd, 2026
-  const cutoffDate = new Date('2026-01-03')
+  // Auto-hide after July 12th, 2026
+  const cutoffDate = new Date('2026-07-13')
   const today = new Date()
   if (!isVisible || today > cutoffDate) return null
 
@@ -28,18 +28,20 @@ export default function AnnouncementPopup({ isVisible, onClose }: AnnouncementPo
               ×
             </button>
           </div>
-          
+
           {/* Content */}
           <div className="text-gray-800 space-y-3">
             <p className="font-semibold text-center">
-              📅 <strong>Sunday sessions are now from 3:00 PM to 5:00 PM</strong>
+              📅 <strong>No sessions on:</strong>
             </p>
-            
-            <p className="font-semibold text-center">
-              🎄 <strong>No sessions on:</strong> 26/12/2025, 28/12/2025, and 2/1/2026 (Christmas holiday)
-            </p>
-            
-            <p className="text-center text-gray-600">
+            <div className="text-center space-y-1">
+              <p>5/7/2026 (Sun),</p>
+              <p>10/7/2026 (Fri),</p>
+              <p>12/7/2026 (Sun),</p>
+              <p>due to hall being booked in advance.</p>
+            </div>
+
+            <p className="text-center text-gray-600 mt-4">
               Thank you for your understanding! 🙏
             </p>
           </div>

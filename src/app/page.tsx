@@ -17,15 +17,15 @@ export default function Home() {
   
   // Show popup on first visit (using localStorage to track)
   useEffect(() => {
-    const hasSeenAnnouncement = localStorage.getItem('seen_christmas_2025_announcement')
+    const hasSeenAnnouncement = localStorage.getItem('seen_july_2026_announcement')
     if (!hasSeenAnnouncement) {
       setShowAnnouncement(true)
     }
   }, [])
-  
+
   const handleCloseAnnouncement = () => {
     setShowAnnouncement(false)
-    localStorage.setItem('seen_christmas_2025_announcement', 'true')
+    localStorage.setItem('seen_july_2026_announcement', 'true')
   }
 
   const tabs = [
