@@ -35,6 +35,7 @@ export default function AnnouncementPopup({ isVisible, onClose }: AnnouncementPo
               📅 <strong>No sessions on:</strong>
             </p>
             <div className="text-center space-y-1">
+              <p>28/6/2026 (Sun),</p>
               <p>5/7/2026 (Sun),</p>
               <p>10/7/2026 (Fri),</p>
               <p>12/7/2026 (Sun),</p>

@@ -15,17 +15,13 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('home')
   const [showAnnouncement, setShowAnnouncement] = useState(false)
   
-  // Show popup on first visit (using localStorage to track)
+  // Show popup on page load
   useEffect(() => {
-    const hasSeenAnnouncement = localStorage.getItem('seen_july_2026_announcement')
-    if (!hasSeenAnnouncement) {
-      setShowAnnouncement(true)
-    }
+    setShowAnnouncement(true)
   }, [])
 
   const handleCloseAnnouncement = () => {
     setShowAnnouncement(false)
-    localStorage.setItem('seen_july_2026_announcement', 'true')
   }
 
   const tabs = [
