@@ -1,159 +1,219 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { clearAllUserData, clearAllData, getData } from '@/lib/utils/storage';
-import { migrateLocalStorageToSupabase } from '@/lib/migrate-to-supabase';
+import { useState, useEffect, useCallback } from 'react'
+import SessionCalendar from '@/components/SessionCalendar'
+import {
+  fetchUnavailableDates,
+  markDateUnavailable,
+  restoreDate,
+} from '@/lib/utils/unavailableDateUtils'
+import { formatDisplayDate, type DayCell } from '@/lib/utils/sessionDates'
+import { getAustralianDateString } from '@/lib/utils/dateUtils'
 
 export default function AdminPage() {
-  const [message, setMessage] = useState('');
-  const [playerCount, setPlayerCount] = useState(0);
-  const [bookingCount, setBookingCount] = useState(0);
-  const [paymentCount, setPaymentCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const todayStr = getAustralianDateString()
 
-  // Update counts
-  const updateCounts = () => {
-    setPlayerCount(getData('PLAYERS').length);
-    setBookingCount(getData('BOOKINGS').length);
-    setPaymentCount(getData('PAYMENTS').length);
-  };
+  const [password, setPassword] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
+  const [isAuthed, setIsAuthed] = useState(false)
+  const [year, setYear] = useState(Number(todayStr.slice(0, 4)))
+  const [month, setMonth] = useState(Number(todayStr.slice(5, 7)))
+  const [unavailableDates, setUnavailableDates] = useState<Record<string, string>>({})
+  const [selected, setSelected] = useState<DayCell | null>(null)
+  const [reason, setReason] = useState('')
+  const [message, setMessage] = useState('')
+  const [isBusy, setIsBusy] = useState(false)
 
-  // Load initial counts
-  useState(() => {
-    updateCounts();
-  });
-
-  const handleClearUserData = () => {
-    if (confirm('Are you sure you want to clear all registered players, bookings, and payments? This action cannot be undone.')) {
-      try {
-        clearAllUserData();
-        updateCounts();
-        setMessage('✅ All user data (players, bookings, payments) has been cleared successfully!');
-      } catch (error) {
-        setMessage('❌ Error clearing user data: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      }
-    }
-  };
-
-  const handleClearAllData = () => {
-    if (confirm('Are you sure you want to clear ALL data including sessions? This will reset everything to defaults. This action cannot be undone.')) {
-      try {
-        clearAllData();
-        updateCounts();
-        setMessage('✅ All data has been cleared and reset to defaults!');
-      } catch (error) {
-        setMessage('❌ Error clearing all data: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      }
-    }
-  };
-
-  const handleLocalStorageMigration = async () => {
-    setIsLoading(true);
+  const reload = useCallback(async () => {
     try {
-      const result = await migrateLocalStorageToSupabase();
-      if (result.success) {
-        setMessage(`✅ LocalStorage migration successful! Migrated ${result.playersCount} players and ${result.bookingsCount} bookings.`);
-      } else {
-        setMessage(`❌ LocalStorage migration failed: ${result.error}`);
-      }
-    } catch (error) {
-      setMessage(`❌ LocalStorage migration error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
+      setUnavailableDates(await fetchUnavailableDates())
+    } catch (err) {
+      setMessage(`❌ ${(err as Error).message}`)
     }
-  };
+  }, [])
+
+  useEffect(() => { reload() }, [reload])
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setIsBusy(true)
+    setMessage('')
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        setMessage(`❌ ${data.error || 'Incorrect password'}`)
+        return
+      }
+      // Held in state so it can accompany each write. Every write is
+      // re-verified server-side; this flag only controls the UI.
+      setPassword(passwordInput)
+      setIsAuthed(true)
+      setPasswordInput('')
+    } catch {
+      setMessage('❌ Could not reach the server. Please try again.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!selected?.date) return
+    setIsBusy(true)
+    setMessage('')
+    try {
+      await markDateUnavailable(selected.date, reason, password)
+      setMessage(`✅ ${formatDisplayDate(selected.date)} marked as no session.`)
+      setReason('')
+      setSelected(null)
+      await reload()
+    } catch (err) {
+      setMessage(`❌ ${(err as Error).message}`)
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const handleRestore = async (date: string) => {
+    setIsBusy(true)
+    setMessage('')
+    try {
+      await restoreDate(date, password)
+      setMessage(`✅ ${formatDisplayDate(date)} restored to a normal session.`)
+      setSelected(null)
+      await reload()
+    } catch (err) {
+      setMessage(`❌ ${(err as Error).message}`)
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const upcoming = Object.entries(unavailableDates)
+    .filter(([date]) => date >= todayStr)
+    .sort(([a], [b]) => a.localeCompare(b))
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <form onSubmit={handleLogin} className="max-w-sm mx-auto bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-xl font-bold text-gray-900 mb-4">Admin Login</h1>
+          <input
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            placeholder="Admin password"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 text-gray-900"
+            autoFocus
+          />
+          <button
+            type="submit"
+            disabled={isBusy || !passwordInput}
+            className="w-full bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isBusy ? 'Checking…' : 'Log in'}
+          </button>
+          {message && <p className="mt-4 text-sm">{message}</p>}
+          <a href="/" className="block mt-6 text-center text-blue-600 hover:text-blue-800 underline text-sm">
+            ← Back to main site
+          </a>
+        </form>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          Admin Panel
-        </h1>
-        
-        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-          <h2 className="text-lg font-semibold mb-3">Current LocalStorage Data:</h2>
-          <div className="space-y-1">
-            <p><strong>Registered Players:</strong> {playerCount}</p>
-            <p><strong>Bookings:</strong> {bookingCount}</p>
-            <p><strong>Payments:</strong> {paymentCount}</p>
-          </div>
-          <button
-            onClick={updateCounts}
-            className="mt-3 text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-          >
-            Refresh Counts
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          {/* LocalStorage Migration Section */}
-          <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">💾 LocalStorage to Supabase Migration</h3>
-            <p className="text-sm text-blue-700 mb-4">
-              Migrate any data stored locally in your browser to Supabase database.
-            </p>
-            <button
-              onClick={handleLocalStorageMigration}
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? '🔄 Migrating...' : '📤 Migrate LocalStorage'}
-            </button>
-          </div>
-
-          {/* Data Management Section */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">🗂️ Data Management</h3>
-            <div className="space-y-4">
-              <button
-                onClick={handleClearUserData}
-                disabled={isLoading}
-                className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 font-medium disabled:opacity-50"
-              >
-                Clear LocalStorage User Data
-              </button>
-              <p className="text-sm text-gray-600">
-                Clears all registered players, bookings, and payments from local storage. Keeps session configurations.
-              </p>
-
-              <button
-                onClick={handleClearAllData}
-                disabled={isLoading}
-                className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 font-medium disabled:opacity-50"
-              >
-                Clear ALL LocalStorage Data
-              </button>
-              <p className="text-sm text-gray-600">
-                Clears everything from local storage and resets to default settings. Use with extreme caution!
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Manage Session Dates</h1>
+        <p className="text-sm text-gray-600 mb-6">
+          Click a Friday or Sunday to mark it as having no session. Changes appear on the
+          public site immediately.
+        </p>
 
         {message && (
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm whitespace-pre-line">{message}</p>
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+            {message}
           </div>
         )}
 
-        <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h3 className="font-semibold text-yellow-800 mb-2">💡 Instructions:</h3>
-          <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
-            <li>You can migrate any data stored locally in your browser to Supabase database.</li>
-            <li>You can then clear local storage data if everything is working correctly</li>
-            <li>Make sure your Supabase environment variables are properly configured</li>
-          </ol>
+        <SessionCalendar
+          year={year}
+          month={month}
+          todayStr={todayStr}
+          unavailableDates={unavailableDates}
+          selectedDate={selected?.date ?? null}
+          onMonthChange={(y, m) => { setYear(y); setMonth(m); setSelected(null) }}
+          onDayClick={(cell) => { setSelected(cell); setReason(cell.reason ?? '') }}
+        />
+
+        {selected?.date && (
+          <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+            <p className="font-semibold text-gray-900 mb-3">
+              {formatDisplayDate(selected.date)}
+            </p>
+            {selected.isCancelled ? (
+              <button
+                onClick={() => handleRestore(selected.date!)}
+                disabled={isBusy}
+                className="w-full bg-green-600 text-white py-2 rounded-md font-medium hover:bg-green-700 disabled:opacity-50"
+              >
+                {isBusy ? 'Working…' : 'Restore this session'}
+              </button>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Reason (optional), e.g. hall booked out"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 text-gray-900"
+                />
+                <button
+                  onClick={handleCancel}
+                  disabled={isBusy}
+                  className="w-full bg-red-600 text-white py-2 rounded-md font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isBusy ? 'Working…' : 'Mark as no session'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Upcoming cancellations</h2>
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-gray-500">None — all sessions are running.</p>
+          ) : (
+            <ul className="space-y-2">
+              {upcoming.map(([date, storedReason]) => (
+                <li key={date} className="flex items-center justify-between gap-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="min-w-0">
+                    <p className="font-medium text-red-700 text-sm">{formatDisplayDate(date)}</p>
+                    <p className="text-xs text-red-600 truncate">{storedReason}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRestore(date)}
+                    disabled={isBusy}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline whitespace-nowrap disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <div className="mt-6 text-center">
-          <a
-            href="/"
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            ← Back to Main Site
-          </a>
-        </div>
+        <a href="/" className="block mt-8 text-center text-blue-600 hover:text-blue-800 underline text-sm">
+          ← Back to main site
+        </a>
       </div>
     </div>
-  );
+  )
 }

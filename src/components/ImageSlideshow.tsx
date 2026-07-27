@@ -48,7 +48,13 @@ export default function ImageSlideshow({
   }
 
   return (
-    <div className={`relative w-full h-64 sm:h-80 lg:h-96 rounded-lg shadow-lg overflow-hidden ${className}`}>
+    // The inline style is a deliberate safety net: it does not depend on Tailwind
+    // loading, so the photo can never grow past its box or escape the page even if
+    // the utility classes fail to apply.
+    <div
+      style={{ maxWidth: '100%', maxHeight: '60vh', overflow: 'hidden' }}
+      className={`relative w-full h-48 sm:h-64 lg:h-80 max-w-full rounded-lg shadow-lg overflow-hidden ${className}`}
+    >
       {/* Image Container */}
       <div className="relative w-full h-full">
         {images.map((src, index) => (

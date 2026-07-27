@@ -117,42 +117,37 @@ git push
 
 ---
 
-## 📅 Managing Unavailable Dates
+## 📅 Cancelling a Session
 
-Unavailable dates (holidays, closures) are stored in Supabase. You can add or remove them without changing code.
+Sessions run every **Friday** and **Sunday** automatically. You only need to act when a
+session is *not* running.
 
-### How to Add an Unavailable Date
+You do this from the admin page — **no code changes, no git push, no deployment.**
 
-1. Go to [supabase.com](https://supabase.com) and log in
-2. Select your project
-3. Click **Table Editor** (left sidebar)
-4. Click **unavailable_dates** table
-5. Click **Insert row** (top right)
-6. Fill in:
-   - **date**: The date in format `YYYY-MM-DD` (e.g., `2026-12-25`)
-   - **reason**: Message to show users (e.g., `No session due to Christmas Day`)
-7. Click **Save**
+### How to Cancel a Session
 
-### How to Remove an Unavailable Date
+1. Go to `https://<your-site>/admin`
+2. Enter the admin password
+3. Click the Friday or Sunday you want to cancel (only session days are clickable)
+4. Optionally type a reason, e.g. `hall booked out`
+5. Click **Mark as no session**
 
-1. Go to Supabase → **Table Editor** → **unavailable_dates**
-2. Find the row you want to remove
-3. Click on the row to select it
-4. Click **Delete** (or press Delete key)
-5. Confirm deletion
+The date immediately turns red on the public calendar, and a popup appears on the site
+listing it. Players see the change on their next page load.
 
-### Example Dates Format
+### How to Un-cancel a Session
 
-| date | reason |
-|------|--------|
-| 2026-01-01 | No session due to New Year's Day. Thank you for your understanding. |
-| 2026-04-25 | No session due to ANZAC Day. Thank you for your understanding. |
-| 2026-12-25 | No session due to Christmas Day. Thank you for your understanding. |
-| 2026-12-26 | No session due to Boxing Day. Thank you for your understanding. |
+1. Go to `/admin` and log in
+2. Either click the red date on the calendar and choose **Restore this session**, or
+   click **Restore** next to it under "Upcoming cancellations"
 
-### Tips
-- Date format must be `YYYY-MM-DD` (year-month-day)
-- The reason message is shown to users when they select that date
+### Notes
+
+- Only Fridays and Sundays can be cancelled, because those are the only session days.
+  Adding a session on a different day needs a code change.
+- The reason is optional but helpful — it's shown to players alongside the date.
+- Cancellations disappear from the popup automatically once the date has passed. You do
+  not need to tidy up old ones.
 - Changes take effect immediately (no deployment needed!)
 
 ---
@@ -175,6 +170,27 @@ The admin password is stored securely in Vercel.
 
 ---
 
+## 🔑 Required Environment Variables
+
+All four must be set in Vercel (**Settings → Environment Variables**). Changing any of them
+requires a redeploy to take effect.
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project address |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public read access |
+| `ADMIN_PASSWORD` | Admin login, and re-checked on every date change |
+| `SUPABASE_SERVICE_ROLE_KEY` | Lets the server save date changes |
+
+⚠️ **`SUPABASE_SERVICE_ROLE_KEY` must NOT start with `NEXT_PUBLIC_`.** Anything with that
+prefix is sent to every visitor's browser, and this key can bypass all database security.
+Get it from Supabase → **Project Settings** → **API** → `service_role`.
+
+The first two are also needed in `.env.local` for local development; the last two are needed
+there too if you want to test cancelling dates locally.
+
+---
+
 ## 🔧 Troubleshooting
 
 ### "Changes not showing on website"
@@ -186,9 +202,20 @@ The admin password is stored securely in Vercel.
 1. Check Vercel Environment Variables for `ADMIN_PASSWORD`
 2. Make sure you redeployed after adding/changing the password
 
-### "Unavailable date not showing"
-1. Check the date format is `YYYY-MM-DD`
-2. Hard refresh the booking page: `Ctrl+Shift+R`
+### "Cancelled date not showing on the site"
+1. Hard refresh the page: `Ctrl+Shift+R`
+2. Check the **Session Dates** tab — the date should be red
+3. Confirm it appears under "Upcoming cancellations" in `/admin`
+
+### "Can't save a cancellation" / "SUPABASE_SERVICE_ROLE_KEY is not set"
+1. Check `SUPABASE_SERVICE_ROLE_KEY` exists in Vercel Environment Variables
+2. Confirm it does **not** have a `NEXT_PUBLIC_` prefix
+3. Redeploy after adding it — new variables need a deployment to take effect
+
+### "Site suddenly can't reach the database"
+Supabase pauses free-tier projects after a period of inactivity, and a paused project's
+address stops resolving entirely. Check the Supabase dashboard — if the project shows as
+paused, restore it. No code change or redeploy is needed afterwards.
 
 ### "Error loading data"
 1. Check your internet connection
@@ -203,3 +230,5 @@ If something isn't working:
 1. Check the error message carefully
 2. Review the [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) file
 3. Check the [CODE_REVIEW.md](./CODE_REVIEW.md) for technical details
+
+

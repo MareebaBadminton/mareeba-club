@@ -69,6 +69,10 @@ CREATE POLICY "Allow public insert on players" ON players FOR INSERT WITH CHECK 
 
 -- Sessions table - allow read access
 CREATE POLICY "Allow public read access on sessions" ON sessions FOR SELECT USING (true);
+-- The two policies below already exist in the live database but were missing from this
+-- file. Recorded here so that rebuilding from this script reproduces the actual database.
+CREATE POLICY "Allow public insert on sessions" ON sessions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update on sessions" ON sessions FOR UPDATE USING (true);
 
 -- Bookings table - allow read and insert for everyone, update for own bookings
 CREATE POLICY "Allow public read access on bookings" ON bookings FOR SELECT USING (true);
@@ -91,7 +95,15 @@ CREATE TABLE IF NOT EXISTS unavailable_dates (
 -- Enable RLS for unavailable_dates
 ALTER TABLE unavailable_dates ENABLE ROW LEVEL SECURITY;
 
--- Allow public read access on unavailable_dates
+-- Allow public read access on unavailable_dates.
+--
+-- READ-ONLY ON PURPOSE - do not add public INSERT/UPDATE/DELETE policies here.
+-- The anon key is shipped to every visitor's browser (it is NEXT_PUBLIC_), so a public
+-- write policy would let anyone delete every cancellation and make the site advertise
+-- sessions that aren't running.
+--
+-- Admin writes go through /api/unavailable-dates, which uses SUPABASE_SERVICE_ROLE_KEY
+-- server-side (bypassing RLS) and verifies ADMIN_PASSWORD on every request.
 CREATE POLICY "Allow public read access on unavailable_dates" ON unavailable_dates FOR SELECT USING (true);
 
 -- Index for faster date lookups

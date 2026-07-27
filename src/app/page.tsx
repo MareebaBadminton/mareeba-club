@@ -1,45 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 
-// Add this import at the top of the file
-import RegisterForm from '@/components/RegisterForm'
-import BookingForm from '@/components/BookingForm'
-import BookingLookup from '@/components/BookingLookup'
-import FindPlayerID from '@/components/FindPlayerID'
+import SessionDates from '@/components/SessionDates'
 import ImageSlideshow from '@/components/ImageSlideshow'
 import AnnouncementPopup from '@/components/AnnouncementPopup'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home')
-  const [showAnnouncement, setShowAnnouncement] = useState(false)
-  
-  // Show popup on page load
-  useEffect(() => {
-    setShowAnnouncement(true)
-  }, [])
-
-  const handleCloseAnnouncement = () => {
-    setShowAnnouncement(false)
-  }
 
   const tabs = [
     { id: 'home', label: 'Home' },
-    { id: 'register', label: 'Register' },
-    { id: 'book', label: 'Book Session' },
-    { id: 'lookup', label: 'Find Booking' },
-    { id: 'find-id', label: 'Find your ID' }
+    { id: 'dates', label: 'Session Dates' }
   ]
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Announcement Popup */}
-      <AnnouncementPopup 
-        isVisible={showAnnouncement} 
-        onClose={handleCloseAnnouncement} 
-      />
-      
+      {/* Announcement Popup - shows upcoming cancellations from the database */}
+      <AnnouncementPopup />
+
       {/* Header */}
       <div className="bg-blue-600">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
@@ -59,7 +39,7 @@ export default function Home() {
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-2 sm:px-6">
-          <nav className="grid grid-cols-5 gap-0">
+          <nav className="grid grid-cols-2 gap-0">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -80,12 +60,12 @@ export default function Home() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
         <div className="bg-white rounded-lg shadow-sm p-3 sm:p-6 lg:p-8">
-          
+
           {/* Home Tab */}
           {activeTab === 'home' && (
             <div>
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6">Welcome to Mareeba Badminton Club</h2>
-              
+
               {/* Image Slideshow */}
               <div className="mb-6 sm:mb-8">
                 <ImageSlideshow
@@ -97,19 +77,20 @@ export default function Home() {
                   interval={5000}
                 />
               </div>
-              
-              {/* Updated intro & fee information */}
+
+              {/* Intro & fee information */}
               <div className="mb-8 sm:mb-10 space-y-4 text-black text-lg sm:text-xl">
                 <p>🏸 <strong>Join the Mareeba Badminton Community!</strong><br/>
-                  Whether you're just starting out or a seasoned player, everyone is welcome to join our friendly sessions.</p>
+                  Whether you&apos;re just starting out or a seasoned player, everyone is welcome to join our friendly sessions.</p>
 
-                <p>💻 <strong>Register and book online — it's FREE</strong> to sign up, and online bookings are cheaper than walk-ins!</p>
+                <p>🏸 <strong>No booking needed</strong> — just turn up and play. Check the
+                  <strong> Session Dates</strong> tab to confirm a session is running.</p>
 
                 <div>
                   <p className="font-bold mb-1">💰 Fees:</p>
                   <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>Online booking: $8</li>
-                    <li>Walk-in: $10</li>
+                    <li>$10 cash on the night</li>
+                    <li>$8 by bank transfer</li>
                   </ul>
                 </div>
 
@@ -129,65 +110,16 @@ export default function Home() {
                 <p className="font-medium">So what are you waiting for? Grab your racquet and join the fun!</p>
               </div>
 
-              {/* How to Register Section */}
+              {/* Payment Details Section */}
               <div className="mb-8 sm:mb-10">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">📝 How to Register</h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
-                  <ol className="space-y-3 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">1</span>
-                      <span className="text-sm sm:text-base">Click on the <strong>"Register"</strong> tab above</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">2</span>
-                      <span className="text-sm sm:text-base">Fill in your personal details (name and email)</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">3</span>
-                      <span className="text-sm sm:text-base">Submit the form and you'll receive a unique <strong>5-digit Player ID</strong></span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">4</span>
-                      <span className="text-sm sm:text-base"><strong>Save your Player ID</strong> - you'll need it to book sessions!</span>
-                    </li>
-                  </ol>
-                </div>
-              </div>
-
-              {/* Payment Instructions Section */}
-              <div className="mb-8 sm:mb-10">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">💳 Payment Instructions</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">💳 Payment Details</h3>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 text-gray-800 text-sm sm:text-base space-y-1">
-                  <p className="font-bold text-xl sm:text-2xl mb-3">Only make payment after you booked a session.</p>
-                  <p>💰 <span className="font-medium">Amount:</span> $8.00</p>
+                  <p className="font-bold text-lg sm:text-xl mb-3">Pay $8 by bank transfer, or $10 cash on the night.</p>
                   <p>🏷️ <span className="font-medium">Name:</span> Mareeba&nbsp;Badminton</p>
                   <p>🏦 <span className="font-medium">BSB:</span> 633-000</p>
                   <p>🏛️ <span className="font-medium">Account:</span> 225&nbsp;395&nbsp;003</p>
                   <p>OR</p>
                   <p>💳 <span className="font-medium">PayID&nbsp;(ABN):</span> 61&nbsp;470&nbsp;216&nbsp;342</p>
-                  <p>📝 <span className="font-medium">Description:</span> Your&nbsp;5-digit&nbsp;Player&nbsp;ID</p>
-                  <p className="pt-2 text-xs sm:text-sm text-gray-700 font-semibold">⚠️ Use your Player ID exactly as the payment description so we can match your payment quickly.</p>
-                </div>
-              </div>
-
-              {/* Quick Tips */}
-              <div className="mb-8 sm:mb-10">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">💡 Quick Tips</h3>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6">
-                  <ul className="space-y-2 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span className="text-sm sm:text-base">Forgot your ID? Just head over to 'Find Your ID' to look it up</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span className="text-sm sm:text-base">Use the exact payment reference provided when making your payment</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="text-blue-600 mr-2 mt-1">•</span>
-                      <span className="text-sm sm:text-base">Use "Find Booking" to check your booking status anytime</span>
-                    </li>
-                  </ul>
                 </div>
               </div>
 
@@ -217,41 +149,19 @@ export default function Home() {
             </div>
           )}
 
-          {/* Register Tab */}
-          {activeTab === 'register' && (
+          {/* Session Dates Tab */}
+          {activeTab === 'dates' && (
             <div>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Player Registration</h2>
-              <RegisterForm onNavigateToBooking={() => setActiveTab('book')} />
-            </div>
-          )}
-
-          {/* Book Session Tab */}
-          {activeTab === 'book' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Book a Session</h2>
-              <BookingForm />
-            </div>
-          )}
-
-          {/* Find Booking Tab */}
-          {activeTab === 'lookup' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">View your past and upcoming bookings</h2>
-              <BookingLookup />
-            </div>
-          )}
-
-          {/* Find your ID Tab */}
-          {activeTab === 'find-id' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">Find Your Player ID</h2>
-              <FindPlayerID />
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">
+                Session Dates
+              </h2>
+              <SessionDates />
             </div>
           )}
 
         </div>
       </div>
-      
+
       {/* Footer */}
       <footer className="bg-gray-800 text-white py-6 sm:py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8 text-center text-gray-500">
