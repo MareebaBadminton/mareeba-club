@@ -59,16 +59,6 @@ export function toAustralianTime(date: Date | string): Date {
   return new Date(australianTimeString);
 }
 
-// Generate payment reference with Australian date (GMT+10)
-export function generatePaymentReference(playerId: string): string {
-  const now = getAustralianDateTime();
-  const year = now.getFullYear();
-  const day = String(now.getDate()).padStart(2, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  
-  return `MB${playerId}${year}${day}${month}`;
-}
-
 // Get current date in YYYY-MM-DD format for Australian timezone
 export function getAustralianDateString(): string {
   const now = new Date();
