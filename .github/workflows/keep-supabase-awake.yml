@@ -1,0 +1,61 @@
+name: Keep Supabase awake
+
+# Supabase pauses free-tier projects after a period of inactivity. A paused
+# project's hostname stops resolving entirely (ERR_NAME_NOT_RESOLVED), so the
+# site cannot reach the database at all - it looks like a code bug but isn't.
+# Hitting a real query endpoint on a schedule keeps the project counted active.
+#
+# IMPORTANT: this is a BACKUP layer, not the primary safeguard. GitHub disables
+# scheduled workflows after 60 days without repository activity - which is
+# exactly the quiet-period failure mode we are guarding against. An external
+# uptime monitor (UptimeRobot, cron-job.org) pointed at the same URL does not
+# have that weakness and should be the main protection.
+
+on:
+  schedule:
+    # 02:00 UTC (noon Brisbane) every Monday and Thursday. Twice weekly keeps the
+    # largest gap to ~3-4 days, leaving margin for GitHub's scheduler running
+    # late under load, which it often does.
+    - cron: '0 2 * * 1,4'
+  # Lets you run it by hand from the Actions tab to check it still works.
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the unavailable-dates endpoint
+        run: |
+          set -uo pipefail
+          URL="https://www.mareebabadminton.com.au/api/unavailable-dates"
+
+          body="$(mktemp)"
+
+          # Check curl's exit status BEFORE looking at the status code. With
+          # --retry, -w writes %{http_code} once per attempt, so on a connection
+          # failure the captured value is "000000..." rather than "000" - testing
+          # the code first would miss the connection-failure case entirely and
+          # report a confusing status instead of the real cause.
+          if ! code="$(curl -sS -o "$body" -w '%{http_code}' \
+                --max-time 30 --retry 3 --retry-delay 10 "$URL")"; then
+            echo "::error::Could not reach the site at all - DNS or connection failure. If the Supabase project has been paused, its hostname stops resolving entirely. Check the Supabase dashboard and restore the project if needed."
+            exit 1
+          fi
+
+          echo "HTTP $code"
+          head -c 300 "$body"; echo
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Expected HTTP 200 but got $code. The site or the database may be unreachable."
+            exit 1
+          fi
+
+          # A 200 on its own is not proof of anything - an error page or an empty
+          # payload would also be a 200. Confirm the response actually carries
+          # data from the database, so a silent failure fails loudly instead.
+          if ! grep -q '"count"' "$body"; then
+            echo "::error::Response did not contain a count field, so this request did not reach Supabase. The endpoint may be returning a cached or error response."
+            exit 1
+          fi
+
+          echo "Supabase reached successfully - project will not be treated as idle."
