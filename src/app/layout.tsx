@@ -1,5 +1,15 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+
+// tailwind.config.js sets fontFamily.sans to var(--font-inter). Without this the
+// variable is never defined, the font-family declaration is invalid, and the whole
+// site falls back to the browser default (Times New Roman).
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Mareeba Badminton Club',
@@ -17,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
         <link rel="icon" href="/mb-logo.png" type="image/png" />
         <link rel="shortcut icon" href="/mb-logo.png" type="image/png" />
