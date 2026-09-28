@@ -1,3 +1,6 @@
+-- HISTORICAL - NOT USED. The app moved to Neon on 2026-09-28; the live schema
+-- is neon-setup.sql. Kept as a record of the booking-era tables.
+
 -- Create players table
 CREATE TABLE IF NOT EXISTS players (
   id TEXT PRIMARY KEY,
