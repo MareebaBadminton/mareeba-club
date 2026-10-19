@@ -172,22 +172,21 @@ The admin password is stored securely in Vercel.
 
 ## 🔑 Required Environment Variables
 
-All four must be set in Vercel (**Settings → Environment Variables**). Changing any of them
+Both must be set in Vercel (**Settings → Environment Variables**). Changing any of them
 requires a redeploy to take effect.
 
 | Variable | Purpose |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project address |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public read access |
+| `DATABASE_URL` | Neon database connection (lets the server read and save cancellations) |
 | `ADMIN_PASSWORD` | Admin login, and re-checked on every date change |
-| `SUPABASE_SERVICE_ROLE_KEY` | Lets the server save date changes |
 
-⚠️ **`SUPABASE_SERVICE_ROLE_KEY` must NOT start with `NEXT_PUBLIC_`.** Anything with that
-prefix is sent to every visitor's browser, and this key can bypass all database security.
-Get it from Supabase → **Project Settings** → **API** → `service_role`.
+⚠️ **`DATABASE_URL` must NOT start with `NEXT_PUBLIC_`.** Anything with that prefix is sent to
+every visitor's browser, and this value gives full access to the database.
 
-The first two are also needed in `.env.local` for local development; the last two are needed
-there too if you want to test cancelling dates locally.
+Get it from Neon → your project → **Connect** (with **Connection pooling** switched on) → copy
+the string starting with `postgresql://`.
+
+Both are also needed in `.env.local` for local development.
 
 ---
 
@@ -207,19 +206,20 @@ there too if you want to test cancelling dates locally.
 2. Check the **Session Dates** tab — the date should be red
 3. Confirm it appears under "Upcoming cancellations" in `/admin`
 
-### "Can't save a cancellation" / "SUPABASE_SERVICE_ROLE_KEY is not set"
-1. Check `SUPABASE_SERVICE_ROLE_KEY` exists in Vercel Environment Variables
+### "Can't save a cancellation" / "DATABASE_URL is not set on the server"
+1. In Vercel → **Settings** → **Environment Variables**, check `DATABASE_URL` exists
 2. Confirm it does **not** have a `NEXT_PUBLIC_` prefix
-3. Redeploy after adding it — new variables need a deployment to take effect
+3. If you just added or changed it, redeploy: **Deployments** → latest → **⋯** → **Redeploy**
 
 ### "Site suddenly can't reach the database"
-Supabase pauses free-tier projects after a period of inactivity, and a paused project's
-address stops resolving entirely. Check the Supabase dashboard — if the project shows as
-paused, restore it. No code change or redeploy is needed afterwards.
+The database is hosted on Neon. On the free plan it goes to sleep when nobody is using it, and
+wakes up by itself on the next visit — the first page load may take a second or two longer.
+You never need to "resume" it. If the site says "Unable to load session dates" for more than a
+few minutes, log in to https://console.neon.tech and check the project for warnings.
 
 ### "Error loading data"
 1. Check your internet connection
-2. Check Supabase dashboard - is the database online?
+2. Check the Neon dashboard (https://console.neon.tech) - is the database online?
 3. Check Vercel dashboard for error logs
 
 ---

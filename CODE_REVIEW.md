@@ -1,5 +1,8 @@
 # Code Review: Mareeba Badminton Club
 
+> **Note (2026-09-28):** The app now uses Neon instead of Supabase, and the booking system has
+> been removed. Supabase-specific sections below are historical. See `CLAUDE.md` for the current setup.
+
 **Date:** December 12, 2025  
 **Reviewer:** AI Code Review  
 **Project:** Next.js 14 + Supabase Badminton Club Booking System  

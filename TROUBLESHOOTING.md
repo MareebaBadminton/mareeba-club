@@ -1,5 +1,8 @@
 # Troubleshooting Guide
 
+> **Note (2026-09-28):** The app now uses Neon instead of Supabase, and the booking system has
+> been removed. Supabase-specific sections below are historical. See `CLAUDE.md` for the current setup.
+
 ## Common Issues & Solutions
 
 ---
